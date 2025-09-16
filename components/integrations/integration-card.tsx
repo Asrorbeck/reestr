@@ -61,9 +61,25 @@ export function IntegrationCard({
 
           <div className="flex items-center gap-2">
             <Hash className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="font-medium">Registratsiya raqami:</span>
-            <span className="text-muted-foreground font-mono text-xs">
-              {integration.id}
+            <span className="font-medium">Tashkilot turi:</span>
+            <span className="text-muted-foreground text-xs">
+              {integration.tashkilotTuri}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Hash className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="font-medium">Ortacha oylik sorovlar:</span>
+            <span className="text-muted-foreground text-xs">
+              {integration.sorovlarOrtachaOylik.toLocaleString()}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Hash className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="font-medium">Axborot tizimi:</span>
+            <span className="text-muted-foreground text-xs">
+              {integration.axborotTizimiNomi}
             </span>
           </div>
 

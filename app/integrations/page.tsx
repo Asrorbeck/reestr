@@ -20,7 +20,7 @@ export default function IntegrationsPage() {
   const [editingIntegration, setEditingIntegration] =
     useState<Integration | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [viewMode, setViewMode] = useState<"card" | "table">("card");
+  const [viewMode, setViewMode] = useState<"card" | "table">("table");
 
   const filteredIntegrations = integrations.filter(
     (integration) =>
@@ -39,8 +39,7 @@ export default function IntegrationsPage() {
   };
 
   const handleAdd = () => {
-    setEditingIntegration(null);
-    setShowForm(true);
+    router.push("/integrations/new");
   };
 
   const handleSave = (integrationData: Partial<Integration>) => {

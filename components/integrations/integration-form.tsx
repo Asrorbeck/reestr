@@ -1,14 +1,20 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import type { Integration } from "@/lib/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState } from "react";
+import type { Integration } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -16,16 +22,21 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 
 interface IntegrationFormProps {
-  integration?: Integration | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSave: (integration: Partial<Integration>) => void
+  integration?: Integration | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (integration: Partial<Integration>) => void;
 }
 
-export function IntegrationForm({ integration, open, onOpenChange, onSave }: IntegrationFormProps) {
+export function IntegrationForm({
+  integration,
+  open,
+  onOpenChange,
+  onSave,
+}: IntegrationFormProps) {
   const [formData, setFormData] = useState({
     nomi: integration?.nomi || "",
     vazirlik: integration?.vazirlik || "",
@@ -36,24 +47,30 @@ export function IntegrationForm({ integration, open, onOpenChange, onSave }: Int
     sana: integration?.sana || new Date().toISOString().split("T")[0],
     muddat: integration?.muddat || "",
     tavsif: integration?.tavsif || "",
-  })
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(formData)
-    onOpenChange(false)
-  }
+    e.preventDefault();
+    onSave(formData);
+    onOpenChange(false);
+  };
 
   const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{integration ? "Integratsiyani tahrirlash" : "Yangi integratsiya qo'shish"}</DialogTitle>
-          <DialogDescription>Integratsiya ma'lumotlarini to'ldiring</DialogDescription>
+          <DialogTitle>
+            {integration
+              ? "Integratsiyani tahrirlash"
+              : "Yangi integratsiya qo'shish"}
+          </DialogTitle>
+          <DialogDescription>
+            Integratsiya ma'lumotlarini to'ldiring
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -95,7 +112,10 @@ export function IntegrationForm({ integration, open, onOpenChange, onSave }: Int
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Texnologiya *</Label>
-              <Select value={formData.texnologiya} onValueChange={(value) => handleChange("texnologiya", value)}>
+              <Select
+                value={formData.texnologiya}
+                onValueChange={(value) => handleChange("texnologiya", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -110,7 +130,10 @@ export function IntegrationForm({ integration, open, onOpenChange, onSave }: Int
 
             <div className="space-y-2">
               <Label>Yo'nalish *</Label>
-              <Select value={formData.yonalish} onValueChange={(value) => handleChange("yonalish", value)}>
+              <Select
+                value={formData.yonalish}
+                onValueChange={(value) => handleChange("yonalish", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -123,7 +146,10 @@ export function IntegrationForm({ integration, open, onOpenChange, onSave }: Int
 
             <div className="space-y-2">
               <Label>Status *</Label>
-              <Select value={formData.status} onValueChange={(value) => handleChange("status", value)}>
+              <Select
+                value={formData.status}
+                onValueChange={(value) => handleChange("status", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -172,13 +198,19 @@ export function IntegrationForm({ integration, open, onOpenChange, onSave }: Int
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Bekor qilish
             </Button>
-            <Button type="submit">{integration ? "Saqlash" : "Qo'shish"}</Button>
+            <Button type="submit">
+              {integration ? "Saqlash" : "Qo'shish"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
