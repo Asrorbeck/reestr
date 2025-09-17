@@ -1,17 +1,21 @@
-"use client"
+"use client";
 
-import { RoleGuard } from "@/components/auth/role-guard"
-import { UserManagement } from "@/components/admin/user-management"
-import { RolePermissions } from "@/components/admin/role-permissions"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { RoleGuard } from "@/components/auth/role-guard";
+import { UserManagement } from "@/components/admin/user-management";
+import { RolePermissions } from "@/components/admin/role-permissions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function UsersPage() {
   return (
     <RoleGuard allowedRoles={["Administrator"]}>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Foydalanuvchilar</h1>
-          <p className="text-muted-foreground">Tizim foydalanuvchilari va ruxsatlarini boshqarish</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Foydalanuvchilar
+          </h1>
+          <p className="text-muted-foreground">
+            Tizim foydalanuvchilari va ruxsatlarini boshqarish
+          </p>
         </div>
 
         <Tabs defaultValue="users" className="space-y-4">
@@ -30,5 +34,5 @@ export default function UsersPage() {
         </Tabs>
       </div>
     </RoleGuard>
-  )
+  );
 }

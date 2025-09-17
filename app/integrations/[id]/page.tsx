@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { Integration } from "@/lib/types";
+import type { Integration, IntegrationTab } from "@/lib/types";
 import { mockIntegrations } from "@/lib/mock-data";
+import { localStorageUtils } from "@/lib/localStorage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   ArrowLeft,
   Calendar,
@@ -26,24 +33,130 @@ const statusColors = {
   Archived: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
 };
 
-const projectStructure = [
+const defaultProjectStructure = [
   { id: "passport", label: "Pasport", active: true },
-  { id: "concept", label: "Konsepsiya", active: false },
-  { id: "technical", label: "Texnik topshiriq", active: false },
 ];
 
 export default function IntegrationDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("passport");
+  const [integration, setIntegration] = useState<Integration | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [projectStructure, setProjectStructure] = useState(
+    defaultProjectStructure
+  );
 
-  const integration = mockIntegrations.find((item) => item.id === params.id);
+  // Sahifa tepasiga skroll qilish uchun ref
+  const topRef = useRef<HTMLDivElement>(null);
+
+  // Tab o'zgarganida tepaga skroll qilish
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    // Darhol skroll qilish
+    setTimeout(() => {
+      if (topRef.current) {
+        topRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      } else {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }, 50);
+  };
+
+  // Orqaga qaytish funksiyasi
+  const handleGoBack = () => {
+    try {
+      // Avval window.history.back() ni sinab ko'rish
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        // Agar history bo'sh bo'lsa, integratsiyalar sahifasiga o'tish
+        router.push("/integrations");
+      }
+    } catch (error) {
+      // Agar window.history.back() ishlamasa, router.back() ni sinab ko'rish
+      try {
+        router.back();
+      } catch (routerError) {
+        // Agar ikkalasi ham ishlamasa, integratsiyalar sahifasiga o'tish
+        console.warn(
+          "Both history.back() and router.back() failed, navigating to integrations page"
+        );
+        router.push("/integrations");
+      }
+    }
+  };
+
+  useEffect(() => {
+    const loadIntegration = () => {
+      try {
+        // LocalStorage'dan ma'lumotlarni o'qish
+        const savedIntegrations = localStorageUtils.getIntegrations();
+
+        // Agar LocalStorage'da ma'lumot yo'q bo'lsa, mock ma'lumotlarni yuklash
+        if (savedIntegrations.length === 0) {
+          localStorageUtils.loadMockData(mockIntegrations);
+          const integration = mockIntegrations.find(
+            (item) => item.id === params.id
+          );
+          setIntegration(integration || null);
+        } else {
+          const integration = savedIntegrations.find(
+            (item) => item.id === params.id
+          );
+          setIntegration(integration || null);
+        }
+      } catch (error) {
+        console.error("Integratsiya yuklashda xatolik:", error);
+        // Xatolik bo'lsa, mock ma'lumotlardan qidirish
+        const integration = mockIntegrations.find(
+          (item) => item.id === params.id
+        );
+        setIntegration(integration || null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadIntegration();
+  }, [params.id]);
+
+  // Integration o'zgarganda project structure'ni yangilash
+  useEffect(() => {
+    if (integration?.dynamicTabs && integration.dynamicTabs.length > 0) {
+      const dynamicTabs = integration.dynamicTabs.map((tab) => ({
+        id: tab.id,
+        label: tab.name,
+        active: false,
+      }));
+      setProjectStructure([...defaultProjectStructure, ...dynamicTabs]);
+    } else {
+      setProjectStructure(defaultProjectStructure);
+    }
+  }, [integration]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Yuklanmoqda...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!integration) {
     return (
       <div className="container mx-auto py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Integratsiya topilmadi</h1>
+          <p className="text-muted-foreground mb-6">
+            ID: {params.id} bo'yicha integratsiya topilmadi
+          </p>
           <Button onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Orqaga qaytish
@@ -55,313 +168,320 @@ export default function IntegrationDetailPage() {
 
   const renderPassportContent = () => (
     <div className="space-y-8">
-      {/* I. Umumiy ma'lumotlar */}
+      {/* I. Asosiy ma'lumotlar */}
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold">I. Umumiy ma'lumotlar</h2>
+        <h2 className="text-2xl font-bold">I. Asosiy ma'lumotlar</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column */}
           <div className="space-y-4">
             <div>
-              <span className="font-medium">1. Loyihaning to'liq nomi:</span>
+              <span className="font-medium">Integratsiya nomi:</span>
               <p className="text-muted-foreground mt-1">{integration.nomi}</p>
             </div>
 
             <div>
-              <span className="font-medium">
-                2. Loyihaning qisqacha tavsifi:
-              </span>
+              <span className="font-medium">Vazirlik/Tashkilot:</span>
               <p className="text-muted-foreground mt-1">
-                {integration.tavsif ||
-                  "Soliq to'lovchilari ma'lumotlarini olish"}
+                {integration.vazirlik}
               </p>
             </div>
 
             <div>
-              <span className="font-medium">3. Loyiha turi:</span>
-              <p className="text-muted-foreground mt-1">Axborot tizimi</p>
-            </div>
-
-            <div>
-              <span className="font-medium">
-                4. Shaxsiy ma'lumotlardan foydalanadi:
-              </span>
-              <p className="text-muted-foreground mt-1">Ha</p>
-            </div>
-
-            <div>
-              <span className="font-medium">
-                5. Tashkilotning yuridik manzili:
-              </span>
+              <span className="font-medium">Tashkilot shakli:</span>
               <p className="text-muted-foreground mt-1">
-                Manzil N° 1: Urganch shahar A.Baxodirxon ko'chasi 186-uy
+                {integration.tashkilotShakli}
               </p>
             </div>
 
             <div>
-              <span className="font-medium">
-                6. Loyihani amalga oshirish uchun mas'ul shaxslar:
-              </span>
-              <div className="mt-2 space-y-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">FISH:</span>
-                    <span className="text-muted-foreground">
-                      Radjapov Dilmurod Maqsudovich
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">Telefon raqami:</span>
-                    <span className="text-muted-foreground">+998975266634</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">Email:</span>
-                    <span className="text-muted-foreground">
-                      Imurodmaqsudovich9393@mail.ru
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">FISH:</span>
-                    <span className="text-muted-foreground">
-                      Masharipov San'atbek Atanazarovich
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">Telefon raqami:</span>
-                    <span className="text-muted-foreground">+998914252270</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">Email:</span>
-                    <span className="text-muted-foreground">
-                      sanatbek@gmail.com
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <span className="font-medium">Tashkilot turi:</span>
+              <p className="text-muted-foreground mt-1">
+                {integration.tashkilotTuri}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium">Status:</span>
+              <Badge className={cn("mt-1", statusColors[integration.status])}>
+                {integration.status}
+              </Badge>
+            </div>
+
+            <div>
+              <span className="font-medium">Yaratilgan sana:</span>
+              <p className="text-muted-foreground mt-1">
+                {formatDate(integration.createdAt)}
+              </p>
             </div>
           </div>
 
           {/* Right Column */}
           <div className="space-y-4">
             <div>
-              <span className="font-medium">7. Loyihaning qisqa nomi:</span>
-              <p className="text-muted-foreground mt-1">{integration.nomi}</p>
+              <span className="font-medium">Axborot tizimi nomi:</span>
+              <p className="text-muted-foreground mt-1">
+                {integration.axborotTizimiNomi}
+              </p>
             </div>
 
             <div>
-              <span className="font-medium">
-                8. Idoralararo axborot tizimi / resurs:
-              </span>
-              <p className="text-muted-foreground mt-1">Ha</p>
+              <span className="font-medium">Ma'lumot beruvchi tashkilot:</span>
+              <p className="text-muted-foreground mt-1">
+                {integration.qaysiTashkilotTomondan}
+              </p>
             </div>
 
             <div>
-              <span className="font-medium">
-                9. Tizim / resurs mavjud va joriy etilgan:
-              </span>
-              <p className="text-muted-foreground mt-1">Yo'q</p>
+              <span className="font-medium">MSPD manzili:</span>
+              <p className="text-muted-foreground mt-1">
+                {integration.mspdManzil}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium">Oylik sorovlar soni:</span>
+              <p className="text-muted-foreground mt-1">
+                {integration.sorovlarOrtachaOylik.toLocaleString()}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium">Muddat:</span>
+              <p className="text-muted-foreground mt-1">{integration.muddat}</p>
+            </div>
+
+            <div>
+              <span className="font-medium">Yangilangan sana:</span>
+              <p className="text-muted-foreground mt-1">
+                {formatDate(integration.updatedAt)}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* II. Asosiy texnik xususiyatlar */}
+      {/* Asosiy vazifasi - Separate row */}
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold">
-          II. Asosiy texnik xususiyatlar haqida ma'lumotlar
-        </h2>
+        <h2 className="text-2xl font-bold">Asosiy vazifasi</h2>
         <div className="space-y-4">
           <div>
             <span className="font-medium">
-              13. Loyiha-texnik hujjatlarini ishlab chiquvchi:
+              Integratsiyaning asosiy vazifasi:
             </span>
-            <p className="text-muted-foreground">Urganch shahar hokimligi</p>
-          </div>
-
-          <div>
-            <span className="font-medium">
-              14. Elektron shaklga o'tkaziladigan xizmatlar ro'yxati:
-            </span>
-            <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-              <li>Fuqarolar murojaatlarini yuborish</li>
-              <li>Davlat xizmatlarini onlayn olish</li>
-              <li>Shahar boshqaruviga qo'shilish</li>
-            </ul>
-          </div>
-
-          <div>
-            <span className="font-medium">
-              15. Axborot tizimining asosiy quyi tizimlari:
-            </span>
-            <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-              <li>Administratorik quyi tizimi</li>
-              <li>Modul Foydalanuvchilarni boshqarish</li>
-              <li>Modul Xizmatlar katalogi</li>
-              <li>Modul Murojaatlar boshqaruvi</li>
-              <li>Modul Hisobotlar</li>
-              <li>Modul Integratsiya</li>
-              <li>Modul Xavfsizlik</li>
-              <li>Modul Monitoring</li>
-              <li>Modul Analytics</li>
-            </ul>
-          </div>
-
-          <div>
-            <span className="font-medium">
-              16. Boshqa axborot tizimlari bilan o'zaro hamkorligi:
-            </span>
-            <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-              <li>
-                Qurilish va uy-joy kommunal xo'jaligi vazirligining axborot
-                tizimi
-              </li>
-              <li>Transport vazirligining axborot tizimi</li>
-              <li>
-                Atrof-muhitni muhofaza qilish vazirligining axborot tizimi
-              </li>
-              <li>Iqtisodiyot va moliya vazirligining axborot tizimi</li>
-              <li>Davlat statistika qo'mitasining axborot tizimi</li>
-              <li>Davlat soliq qo'mitasining axborot tizimi</li>
-              <li>Davlat bojxona qo'mitasining axborot tizimi</li>
-              <li>Davlat xavfsizlik xizmatining axborot tizimi</li>
-              <li>Ichki ishlar vazirligining axborot tizimi</li>
-              <li>Adliya vazirligining axborot tizimi</li>
-              <li>Ta'lim vazirligining axborot tizimi</li>
-              <li>Sog'liqni saqlash vazirligining axborot tizimi</li>
-              <li>Mehnat vazirligining axborot tizimi</li>
-              <li>Ijtimoiy himoya vazirligining axborot tizimi</li>
-              <li>Madaniyat vazirligining axborot tizimi</li>
-              <li>Sport vazirligining axborot tizimi</li>
-              <li>Turizm va madaniy meros vazirligining axborot tizimi</li>
-            </ul>
-          </div>
-
-          <div>
-            <span className="font-medium">
-              17. Amaliy ma'lumotnomalar va klassifikatorlar:
-            </span>
-            <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-              <li>
-                Davlat axborot resurslari va axborot tizimlari klassifikatori
-              </li>
-              <li>Fuqarolarning shaxsiy ma'lumotlari klassifikatori</li>
-              <li>Davlat xizmatlari katalogi</li>
-              <li>Davlat organlari va tashkilotlari ro'yxati</li>
-              <li>Hududiy birliklar klassifikatori</li>
-              <li>Iqtisodiy faoliyat turlari klassifikatori</li>
-              <li>Kasb-hunarlar klassifikatori</li>
-              <li>Ta'lim muassasalari klassifikatori</li>
-            </ul>
-          </div>
-
-          <div>
-            <span className="font-medium">
-              18. Ma'lumotlar bazasida ishlatiladigan yagona identifikator:
-            </span>
-            <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-              <li>ЖШИР - Jismoniy shaxsning shaxsiy identifikatsiya raqami</li>
-              <li>ЮШИР - Yuridik shaxsning shaxsiy identifikatsiya raqami</li>
-            </ul>
+            <p className="text-muted-foreground mt-2 leading-relaxed">
+              {integration.asosiyMaqsad || "Asosiy vazifa kiritilmagan"}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* III. Yaratish, foydalanish va foydalanishdan chiqarish */}
+      {/* Ma'lumot almashish sharti - Separate row */}
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold">
-          III. Yaratish, foydalanish va foydalanishdan chiqarish haqidagi
-          ma'lumotlar
-        </h2>
+        <h2 className="text-2xl font-bold">Ma'lumot almashish sharti</h2>
         <div className="space-y-4">
           <div>
-            <span className="font-medium">
-              19. Autsorsing xizmatlaridan foydalanadi:
-            </span>
-            <p className="text-muted-foreground">Ha</p>
-          </div>
-
-          <div>
-            <span className="font-medium">
-              20. Axborot tizimini ishlab chiquvchi:
-            </span>
-            <p className="text-muted-foreground">
-              Yaratuvchi nomi: Mustafo software MChJ
-              <br />
-              Ishlab chiqish jarayonini boshlash va yakunlash haqidagi hujjat:
-              2025-yil 1-maydagi 001-sonli shartnoma
+            <span className="font-medium">Ma'lumot almashish shartlari:</span>
+            <p className="text-muted-foreground mt-2 leading-relaxed">
+              {integration.maqlumotAlmashishSharti ||
+                "Ma'lumot almashish sharti kiritilmagan"}
             </p>
           </div>
+        </div>
+      </div>
 
-          <div>
-            <span className="font-medium">
-              21. «Kiberxavfsizlik markazi» ekspertizasi:
-            </span>
-            <p className="text-muted-foreground">
-              2025-yil 8-iyuldagi kiberxavfsizlik markazi bilan 2025-yil
-              21-avgustdagi 665-sonli TZ
-            </p>
+      {/* II. Texnik xususiyatlar */}
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold">II. Texnik xususiyatlar</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left Column */}
+          <div className="space-y-4">
+            <div>
+              <span className="font-medium">Texnologiya:</span>
+              <p className="text-muted-foreground mt-1">
+                {integration.texnologiya}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium">
+                Texnologik yo'riqnoma mavjudligi:
+              </span>
+              <p className="text-muted-foreground mt-1">
+                {integration.texnologikYoriknomaMavjudligi
+                  ? "Mavjud"
+                  : "Mavjud emas"}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium">Huquqiy asos:</span>
+              <p className="text-muted-foreground mt-1">
+                {integration.huquqiyAsos}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium">Normativ-huquqiy hujjat:</span>
+              <p className="text-muted-foreground mt-1">
+                {integration.normativHuquqiyHujjat}
+              </p>
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-4">
+            <div>
+              <span className="font-medium">Sana:</span>
+              <p className="text-muted-foreground mt-1">{integration.sana}</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 
-  const renderConceptContent = () => (
+  const renderDynamicTabContent = (tab: IntegrationTab) => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">II. Konsepsiya</h2>
-      <div className="space-y-4">
-        <p className="text-muted-foreground">
-          Bu bo'limda loyihaning konsepsiyasi va maqsadlari haqida batafsil
-          ma'lumot beriladi.
-        </p>
-        <div className="bg-muted p-4 rounded-lg">
-          <p className="text-sm text-muted-foreground">
-            Konsepsiya ma'lumotlari hali yuklanmagan. Ma'lumotlar qo'shilgandan
-            so'ng bu yerda ko'rsatiladi.
-          </p>
-        </div>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">{tab.title}</h2>
       </div>
-    </div>
-  );
 
-  const renderTechnicalContent = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">III. Texnik topshiriq</h2>
       <div className="space-y-4">
-        <p className="text-muted-foreground">
-          Bu bo'limda loyihaning texnik topshirig'i va texnik talablari haqida
-          ma'lumot beriladi.
-        </p>
-        <div className="bg-muted p-4 rounded-lg">
-          <p className="text-sm text-muted-foreground">
-            Texnik topshiriq ma'lumotlari hali yuklanmagan. Ma'lumotlar
-            qo'shilgandan so'ng bu yerda ko'rsatiladi.
-          </p>
-        </div>
+        {tab.description && (
+          <div>
+            <h4 className="font-medium mb-2">Tavsif:</h4>
+            <p className="text-muted-foreground">{tab.description}</p>
+          </div>
+        )}
+
+        {tab.files && tab.files.length > 0 && (
+          <div>
+            <h4 className="font-medium mb-4">Fayllar:</h4>
+            <Accordion type="single" collapsible className="w-full">
+              {tab.files.map((file, index) => (
+                <AccordionItem
+                  key={file.id || index}
+                  value={file.id?.toString() || index.toString()}
+                >
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center space-x-3 text-left">
+                        <FileText className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium">{file.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB •{" "}
+                            {file.type}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Yuklab olish logikasi
+                        }}
+                        className="ml-4"
+                      >
+                        Yuklab olish
+                      </Button>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="pt-4">
+                      {file.type.startsWith("image/") ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Rasm ko'rinishi:
+                          </p>
+                          <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                            <img
+                              src={file.url || `data:${file.type};base64,`}
+                              alt={file.name}
+                              className="w-full h-auto max-h-96 object-contain"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                const nextElement = e.currentTarget
+                                  .nextElementSibling as HTMLElement;
+                                if (nextElement) {
+                                  nextElement.style.display = "block";
+                                }
+                              }}
+                            />
+                            <div className="hidden p-8 text-center text-gray-500 dark:text-gray-400">
+                              <FileText className="h-12 w-12 mx-auto mb-2" />
+                              <p>Rasm yuklanmadi</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : file.type === "application/pdf" ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            PDF ko'rinishi:
+                          </p>
+                          <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                            <iframe
+                              src={file.url || `data:${file.type};base64,`}
+                              className="w-full h-[1000px]"
+                              title={file.name}
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                const nextElement = e.currentTarget
+                                  .nextElementSibling as HTMLElement;
+                                if (nextElement) {
+                                  nextElement.style.display = "block";
+                                }
+                              }}
+                            />
+                            <div className="hidden p-8 text-center text-gray-500 dark:text-gray-400">
+                              <FileText className="h-12 w-12 mx-auto mb-2" />
+                              <p>PDF yuklanmadi</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Fayl turi:
+                          </p>
+                          <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
+                            <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                            <p className="text-gray-600 dark:text-gray-400">
+                              {file.type} faylini ko'rish uchun yuklab oling
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        )}
       </div>
     </div>
   );
 
   const renderContent = () => {
-    switch (activeTab) {
-      case "concept":
-        return renderConceptContent();
-      case "technical":
-        return renderTechnicalContent();
-      default:
-        return renderPassportContent();
+    // Dynamic tablarni tekshirish
+    if (integration?.dynamicTabs) {
+      const dynamicTab = integration.dynamicTabs.find(
+        (tab) => tab.id === activeTab
+      );
+      if (dynamicTab) {
+        return renderDynamicTabContent(dynamicTab);
+      }
     }
+
+    // Faqat passport content
+    return renderPassportContent();
   };
 
   return (
     <div className="container mx-auto py-6">
+      <div ref={topRef}></div>
       <div className="flex gap-6">
         {/* Main Content */}
         <div className="flex-1">
@@ -369,7 +489,7 @@ export default function IntegrationDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <Button
                 variant="ghost"
-                onClick={() => router.back()}
+                onClick={handleGoBack}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -396,60 +516,6 @@ export default function IntegrationDetailPage() {
 
         {/* Sidebar */}
         <div className="w-80 space-y-6 max-h-screen overflow-y-auto sticky top-6">
-          {/* Information Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Ma'lumotnoma</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Hash className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Ro'yxatga olingan raqami:</span>
-                <span className="text-muted-foreground font-mono">
-                  {integration.id}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Yaratilgan sana:</span>
-                <span className="text-muted-foreground">
-                  {formatDate(integration.createdAt)}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Tashkilot:</span>
-                <span className="text-muted-foreground">
-                  {integration.vazirlik}
-                </span>
-              </div>
-
-              <Separator />
-
-              <div>
-                <span className="font-medium">
-                  Loyihani amalga oshirish uchun mas'ul shaxslar:
-                </span>
-                <div className="mt-2 space-y-2 text-sm">
-                  <div>
-                    <span className="font-medium">FISH:</span>
-                    <p className="text-muted-foreground">Admin User</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Telefon raqami:</span>
-                    <p className="text-muted-foreground">+998901234567</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Email:</span>
-                    <p className="text-muted-foreground">admin@example.com</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Project Structure Card */}
           <Card>
             <CardHeader>
@@ -462,7 +528,7 @@ export default function IntegrationDetailPage() {
                     key={item.id}
                     variant={activeTab === item.id ? "default" : "ghost"}
                     className="w-full justify-start"
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => handleTabChange(item.id)}
                   >
                     {item.label}
                   </Button>

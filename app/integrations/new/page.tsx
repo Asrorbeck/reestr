@@ -32,6 +32,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ArrowLeft, Upload, X, Plus } from "lucide-react";
+import { localStorageUtils } from "@/lib/localStorage";
 
 export default function NewIntegrationPage() {
   const router = useRouter();
@@ -51,34 +52,26 @@ export default function NewIntegrationPage() {
     }>
   >([]);
   const [formData, setFormData] = useState({
-    // Passport - I. Umumiy ma'lumotlar
+    // Table fields only
     nomi: "",
     vazirlik: "",
-    huquqiyAsos: "",
     texnologiya: "",
-    yonalish: "",
     status: "Test",
-    sana: "",
-    muddat: "",
-    tavsif: "",
-    // Passport - II. Asosiy texnik xususiyatlar
-    texnikXususiyatlar: "",
-    apiEndpoint: "",
-    authenticationType: "",
-    dataFormat: "",
-    responseTime: "",
-    throughput: "",
-    securityLevel: "",
-    // Passport - III. Yaratish, foydalanish va foydalanishdan chiqarish
-    yaratishBosqichlari: "",
-    foydalanishQoidalari: "",
-    texnikQollabQuvvatlash: "",
-    monitoring: "",
-    backupStrategy: "",
-    disasterRecovery: "",
+    tashkilotShakli: "",
+    asosiyMaqsad: "",
+    normativHuquqiyHujjat: "",
+    texnologikYoriknomaMavjudligi: false,
+    maqlumotAlmashishSharti: "",
+    sorovlarOrtachaOylik: 0,
+    qaysiTashkilotTomondan: "",
+    mspdManzil: "",
+    axborotTizimiNomi: "",
   });
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (
+    field: string,
+    value: string | number | boolean
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -209,11 +202,92 @@ export default function NewIntegrationPage() {
     }
   };
 
-  const handleSave = () => {
-    // Here you would save the integration data
-    console.log("Saving integration:", formData);
-    // Navigate back to integrations list
-    router.push("/integrations");
+  const handleSave = async () => {
+    // Ma'lumotlarni tekshirish
+    if (
+      !formData.nomi ||
+      !formData.vazirlik ||
+      !formData.texnologiya ||
+      !formData.tashkilotShakli
+    ) {
+      alert("Barcha majburiy maydonlarni to'ldiring!");
+      return;
+    }
+
+    try {
+      // Dynamic tablarni tayyorlash
+      // Fayllarni base64 formatda saqlash
+      const processFiles = async (files: any[]) => {
+        const processedFiles = [];
+        for (const file of files) {
+          if (file.file) {
+            const base64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(file.file);
+            });
+            processedFiles.push({
+              name: file.file.name,
+              size: file.file.size,
+              type: file.file.type,
+              url: base64,
+            });
+          }
+        }
+        return processedFiles;
+      };
+
+      const preparedDynamicTabs = await Promise.all(
+        dynamicTabs.map(async (tab: any) => ({
+          name: tab.name,
+          title: tab.title,
+          description: tab.description,
+          files: await processFiles(tab.files),
+        }))
+      );
+
+      // LocalStorage'ga saqlash
+      const newIntegration = localStorageUtils.addIntegration({
+        nomi: formData.nomi,
+        vazirlik: formData.vazirlik,
+        texnologiya: formData.texnologiya as
+          | "REST"
+          | "SOAP"
+          | "MQ"
+          | "File exchange",
+        status: formData.status as "Active" | "Test" | "Archived",
+        tashkilotShakli: formData.tashkilotShakli,
+        asosiyMaqsad: formData.asosiyMaqsad,
+        normativHuquqiyHujjat: formData.normativHuquqiyHujjat,
+        texnologikYoriknomaMavjudligi: formData.texnologikYoriknomaMavjudligi,
+        maqlumotAlmashishSharti: formData.maqlumotAlmashishSharti,
+        sorovlarOrtachaOylik: formData.sorovlarOrtachaOylik,
+        qaysiTashkilotTomondan: formData.qaysiTashkilotTomondan,
+        mspdManzil: formData.mspdManzil,
+        axborotTizimiNomi: formData.axborotTizimiNomi,
+        // Qo'shimcha maydonlar
+        huquqiyAsos: formData.normativHuquqiyHujjat,
+        sana: new Date().toISOString().split("T")[0],
+        muddat: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0], // 1 yil
+        tavsif: formData.asosiyMaqsad,
+        tashkilotTuri:
+          formData.tashkilotShakli === "Davlat tashkiloti"
+            ? "Davlat tashkiloti"
+            : "Bank",
+        // Dynamic tabs
+        dynamicTabs: preparedDynamicTabs,
+      });
+
+      alert("Integratsiya muvaffaqiyatli saqlandi!");
+
+      // Integrations listiga qaytish
+      router.push("/integrations");
+    } catch (error) {
+      console.error("Saqlashda xatolik:", error);
+      alert("Saqlashda xatolik yuz berdi!");
+    }
   };
 
   const handleCancel = () => {
@@ -222,15 +296,100 @@ export default function NewIntegrationPage() {
 
   const renderPassportContent = () => (
     <div className="space-y-8">
-      {/* I. Umumiy ma'lumotlar */}
+      {/* I. Integratsiya ma'lumotlari */}
       <div className="space-y-6">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
             I
           </div>
-          <h3 className="text-lg font-semibold">Umumiy ma'lumotlar</h3>
+          <h3 className="text-lg font-semibold">Integratsiya ma'lumotlari</h3>
         </div>
 
+        {/* Select fields row - maximum width */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="texnologiya">Texnologiya *</Label>
+            <Select
+              value={formData.texnologiya}
+              onValueChange={(value) => handleInputChange("texnologiya", value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Texnologiyani tanlang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="REST">REST API</SelectItem>
+                <SelectItem value="SOAP">SOAP</SelectItem>
+                <SelectItem value="GraphQL">GraphQL</SelectItem>
+                <SelectItem value="MQ">Message Queue</SelectItem>
+                <SelectItem value="File exchange">File exchange</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="status">Holat *</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) => handleInputChange("status", value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Holatni tanlang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Test">Test</SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Archived">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tashkilotShakli">Tashkilot shakli *</Label>
+            <Select
+              value={formData.tashkilotShakli}
+              onValueChange={(value) =>
+                handleInputChange("tashkilotShakli", value)
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Tashkilot shaklini tanlang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Davlat tashkiloti">
+                  Davlat tashkiloti
+                </SelectItem>
+                <SelectItem value="Xususiy tashkilot">
+                  Xususiy tashkilot
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="texnologikYoriknomaMavjudligi">
+              Texnologik yo'riqnoma mavjudligi *
+            </Label>
+            <Select
+              value={formData.texnologikYoriknomaMavjudligi ? "true" : "false"}
+              onValueChange={(value) =>
+                handleInputChange(
+                  "texnologikYoriknomaMavjudligi",
+                  value === "true"
+                )
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Yo'riqnoma holatini tanlang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">Mavjud</SelectItem>
+                <SelectItem value="false">Mavjud emas</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Main input fields row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="space-y-2">
@@ -254,333 +413,111 @@ export default function NewIntegrationPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="huquqiyAsos">Huquqiy asos *</Label>
+              <Label htmlFor="sorovlarOrtachaOylik">
+                Oylik sorovlar soni *
+              </Label>
               <Input
-                id="huquqiyAsos"
-                value={formData.huquqiyAsos}
+                id="sorovlarOrtachaOylik"
+                type="number"
+                value={formData.sorovlarOrtachaOylik}
                 onChange={(e) =>
-                  handleInputChange("huquqiyAsos", e.target.value)
+                  handleInputChange(
+                    "sorovlarOrtachaOylik",
+                    parseInt(e.target.value) || 0
+                  )
                 }
-                placeholder="O'zR PV 2024-yil XX-son qarori"
+                placeholder="Oylik sorovlar sonini kiriting"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="texnologiya">Texnologiya *</Label>
-              <Select
-                value={formData.texnologiya}
-                onValueChange={(value) =>
-                  handleInputChange("texnologiya", value)
+              <Label htmlFor="qaysiTashkilotTomondan">
+                Ma'lumot beruvchi tashkilot *
+              </Label>
+              <Input
+                id="qaysiTashkilotTomondan"
+                value={formData.qaysiTashkilotTomondan}
+                onChange={(e) =>
+                  handleInputChange("qaysiTashkilotTomondan", e.target.value)
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Texnologiyani tanlang" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="REST">REST API</SelectItem>
-                  <SelectItem value="SOAP">SOAP</SelectItem>
-                  <SelectItem value="GraphQL">GraphQL</SelectItem>
-                  <SelectItem value="MQ">Message Queue</SelectItem>
-                  <SelectItem value="File exchange">File exchange</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="yonalish">Yo'nalish *</Label>
-              <Select
-                value={formData.yonalish}
-                onValueChange={(value) => handleInputChange("yonalish", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Yo'nalishni tanlang" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="One-way">One-way</SelectItem>
-                  <SelectItem value="Two-way">Two-way</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status">Holat *</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => handleInputChange("status", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Holatni tanlang" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Test">Test</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Archived">Archived</SelectItem>
-                </SelectContent>
-              </Select>
+                placeholder="Ma'lumot beruvchi tashkilotni kiriting"
+              />
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="sana">Boshlanish sanasi *</Label>
+              <Label htmlFor="axborotTizimiNomi">Axborot tizimi nomi *</Label>
               <Input
-                id="sana"
-                type="date"
-                value={formData.sana}
-                onChange={(e) => handleInputChange("sana", e.target.value)}
+                id="axborotTizimiNomi"
+                value={formData.axborotTizimiNomi}
+                onChange={(e) =>
+                  handleInputChange("axborotTizimiNomi", e.target.value)
+                }
+                placeholder="Axborot tizimi nomini kiriting"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="muddat">Tugash sanasi *</Label>
+              <Label htmlFor="mspdManzil">MSPD manzili *</Label>
               <Input
-                id="muddat"
-                type="date"
-                value={formData.muddat}
-                onChange={(e) => handleInputChange("muddat", e.target.value)}
+                id="mspdManzil"
+                value={formData.mspdManzil}
+                onChange={(e) =>
+                  handleInputChange("mspdManzil", e.target.value)
+                }
+                placeholder="MSPD manzilini kiriting"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tavsif">Tavsif *</Label>
-              <Textarea
-                id="tavsif"
-                value={formData.tavsif}
-                onChange={(e) => handleInputChange("tavsif", e.target.value)}
-                placeholder="Integratsiya haqida batafsil ma'lumot"
-                rows={4}
+              <Label htmlFor="normativHuquqiyHujjat">
+                Normativ-huquqiy hujjat *
+              </Label>
+              <Input
+                id="normativHuquqiyHujjat"
+                value={formData.normativHuquqiyHujjat}
+                onChange={(e) =>
+                  handleInputChange("normativHuquqiyHujjat", e.target.value)
+                }
+                placeholder="Normativ-huquqiy hujjat nomini kiriting"
               />
             </div>
           </div>
         </div>
-      </div>
 
-      <Separator />
-
-      {/* II. Asosiy texnik xususiyatlar */}
-      <div className="space-y-6">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
-            II
-          </div>
-          <h3 className="text-lg font-semibold">
-            Asosiy texnik xususiyatlar haqida ma'lumotlar
-          </h3>
-        </div>
-
+        {/* Textarea fields row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="texnikXususiyatlar">Texnik xususiyatlar *</Label>
+              <Label htmlFor="asosiyMaqsad">Asosiy vazifasi *</Label>
               <Textarea
-                id="texnikXususiyatlar"
-                value={formData.texnikXususiyatlar}
+                id="asosiyMaqsad"
+                value={formData.asosiyMaqsad}
                 onChange={(e) =>
-                  handleInputChange("texnikXususiyatlar", e.target.value)
+                  handleInputChange("asosiyMaqsad", e.target.value)
                 }
-                placeholder="Texnik xususiyatlar haqida ma'lumot"
+                placeholder="Integratsiyaning asosiy vazifasini kiriting"
                 rows={3}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="apiEndpoint">API Endpoint *</Label>
-              <Input
-                id="apiEndpoint"
-                value={formData.apiEndpoint}
-                onChange={(e) =>
-                  handleInputChange("apiEndpoint", e.target.value)
-                }
-                placeholder="https://api.example.com/v1"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="authenticationType">
-                Autentifikatsiya turi *
-              </Label>
-              <Select
-                value={formData.authenticationType}
-                onValueChange={(value) =>
-                  handleInputChange("authenticationType", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Autentifikatsiya turini tanlang" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="API Key">API Key</SelectItem>
-                  <SelectItem value="OAuth 2.0">OAuth 2.0</SelectItem>
-                  <SelectItem value="JWT">JWT</SelectItem>
-                  <SelectItem value="Basic Auth">Basic Auth</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="dataFormat">Ma'lumot formati *</Label>
-              <Select
-                value={formData.dataFormat}
-                onValueChange={(value) =>
-                  handleInputChange("dataFormat", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Ma'lumot formatini tanlang" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="JSON">JSON</SelectItem>
-                  <SelectItem value="XML">XML</SelectItem>
-                  <SelectItem value="CSV">CSV</SelectItem>
-                  <SelectItem value="PDF">PDF</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="responseTime">Javob vaqti (ms) *</Label>
-              <Input
-                id="responseTime"
-                type="number"
-                value={formData.responseTime}
+              <Label htmlFor="maqlumotAlmashishSharti">
+                Ma'lumot almashish sharti *
+              </Label>
+              <Textarea
+                id="maqlumotAlmashishSharti"
+                value={formData.maqlumotAlmashishSharti}
                 onChange={(e) =>
-                  handleInputChange("responseTime", e.target.value)
+                  handleInputChange("maqlumotAlmashishSharti", e.target.value)
                 }
-                placeholder="500"
+                placeholder="Ma'lumot almashish shartlarini kiriting"
+                rows={3}
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="throughput">Throughput (req/min) *</Label>
-              <Input
-                id="throughput"
-                type="number"
-                value={formData.throughput}
-                onChange={(e) =>
-                  handleInputChange("throughput", e.target.value)
-                }
-                placeholder="1000"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="securityLevel">Xavfsizlik darajasi *</Label>
-              <Select
-                value={formData.securityLevel}
-                onValueChange={(value) =>
-                  handleInputChange("securityLevel", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Xavfsizlik darajasini tanlang" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Low">Low</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
-                  <SelectItem value="Critical">Critical</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* III. Yaratish, foydalanish va foydalanishdan chiqarish */}
-      <div className="space-y-6">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
-            III
-          </div>
-          <h3 className="text-lg font-semibold">
-            Yaratish, foydalanish va foydalanishdan chiqarish haqidagi
-            ma'lumotlar
-          </h3>
-        </div>
-
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="yaratishBosqichlari">Yaratish bosqichlari *</Label>
-            <Textarea
-              id="yaratishBosqichlari"
-              value={formData.yaratishBosqichlari}
-              onChange={(e) =>
-                handleInputChange("yaratishBosqichlari", e.target.value)
-              }
-              placeholder="Integratsiya yaratish bosqichlari haqida ma'lumot"
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="foydalanishQoidalari">
-              Foydalanish qoidalari *
-            </Label>
-            <Textarea
-              id="foydalanishQoidalari"
-              value={formData.foydalanishQoidalari}
-              onChange={(e) =>
-                handleInputChange("foydalanishQoidalari", e.target.value)
-              }
-              placeholder="Foydalanish qoidalari va talablari"
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="texnikQollabQuvvatlash">
-              Texnik qo'llab-quvvatlash *
-            </Label>
-            <Textarea
-              id="texnikQollabQuvvatlash"
-              value={formData.texnikQollabQuvvatlash}
-              onChange={(e) =>
-                handleInputChange("texnikQollabQuvvatlash", e.target.value)
-              }
-              placeholder="Texnik qo'llab-quvvatlash haqida ma'lumot"
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="monitoring">Monitoring *</Label>
-            <Textarea
-              id="monitoring"
-              value={formData.monitoring}
-              onChange={(e) => handleInputChange("monitoring", e.target.value)}
-              placeholder="Monitoring va kuzatish tizimi"
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="backupStrategy">Backup strategiyasi *</Label>
-            <Textarea
-              id="backupStrategy"
-              value={formData.backupStrategy}
-              onChange={(e) =>
-                handleInputChange("backupStrategy", e.target.value)
-              }
-              placeholder="Backup va zaxira nusxa strategiyasi"
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="disasterRecovery">Disaster Recovery *</Label>
-            <Textarea
-              id="disasterRecovery"
-              value={formData.disasterRecovery}
-              onChange={(e) =>
-                handleInputChange("disasterRecovery", e.target.value)
-              }
-              placeholder="Falokatdan tiklash strategiyasi"
-              rows={3}
-            />
           </div>
         </div>
       </div>
