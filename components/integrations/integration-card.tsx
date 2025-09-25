@@ -25,7 +25,11 @@ export function IntegrationCard({
   userRole = "Administrator",
 }: IntegrationCardProps) {
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card
+      className="hover:shadow-md transition-shadow"
+      data-integration-card
+      onClick={() => onView?.(integration)}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <CardTitle className="text-lg leading-tight">

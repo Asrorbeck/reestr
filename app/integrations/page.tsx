@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Integration } from "@/lib/types";
 import { mockIntegrations } from "@/lib/mock-data";
@@ -23,14 +23,18 @@ import { PurposeModal } from "@/components/integrations/purpose-modal";
 import { ConditionsModal } from "@/components/integrations/conditions-modal";
 import { AdvancedFilter } from "@/components/integrations/advanced-filter";
 import Pagination from "@/components/integrations/pagination";
+import { ShortcutsModal } from "@/components/integrations/shortcuts-modal";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { exportFilteredToExcel } from "@/lib/excel-export";
+import { useIntegrationShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import {
   Plus,
   Grid3X3,
   Table as TableIcon,
   Search,
   Download,
+  Keyboard,
+  RefreshCw,
 } from "lucide-react";
 
 interface HeaderFilters {
@@ -78,6 +82,11 @@ export default function IntegrationsPage() {
     useState<Integration | null>(null);
   const [isConditionsModalOpen, setIsConditionsModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
+  const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>(
+    []
+  );
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
@@ -321,6 +330,38 @@ export default function IntegrationsPage() {
     );
   };
 
+  // Selection handlers
+  const handleSelectAll = () => {
+    if (selectedIntegrations.length === filteredIntegrations.length) {
+      setSelectedIntegrations([]);
+    } else {
+      setSelectedIntegrations(
+        filteredIntegrations.map((integration) => integration.id)
+      );
+    }
+  };
+
+  const handleExportSelected = () => {
+    if (selectedIntegrations.length === 0) {
+      alert("Hech qanday integratsiya tanlanmagan!");
+      return;
+    }
+
+    const selectedIntegrationsData = filteredIntegrations.filter(
+      (integration) => selectedIntegrations.includes(integration.id)
+    );
+
+    exportFilteredToExcel(
+      selectedIntegrationsData,
+      `Tanlangan ${selectedIntegrations.length} ta integratsiya`,
+      "tanlangan-integratsiyalar",
+      visibleColumns
+    );
+  };
+
+  // Setup shortcuts
+  useIntegrationShortcuts(handleSelectAll, handleExportSelected);
+
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
     return (
@@ -373,7 +414,8 @@ export default function IntegrationsPage() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Integratsiyalarni qidirish..."
+              ref={searchInputRef}
+              placeholder="Integratsiyalarni qidirish... (Alt+F yoki Ctrl+Shift+F)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-8"
@@ -381,23 +423,62 @@ export default function IntegrationsPage() {
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
             {filteredIntegrations.length} ta integratsiya topildi
+            {selectedIntegrations.length > 0 && (
+              <span className="ml-2 text-blue-600 dark:text-blue-400 font-medium">
+                ({selectedIntegrations.length} ta tanlangan)
+              </span>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Shortcuts Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsShortcutsModalOpen(true)}
+            className="h-8 px-3"
+            title="Keyboard shortcuts (? key)"
+          >
+            <Keyboard className="h-4 w-4 mr-2" />
+            Shortcuts
+          </Button>
+
+          {/* Refresh Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+            className="h-8 px-3"
+            title="Sahifani yangilash"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Yangilash
+          </Button>
+
           {/* Excel Export Button */}
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExportToExcel}
+            onClick={
+              selectedIntegrations.length > 0
+                ? handleExportSelected
+                : handleExportToExcel
+            }
             className="h-8 px-3 bg-green-50 hover:bg-green-100 border-green-200 text-green-700 hover:text-green-800"
-            title={`${visibleColumns.length} ta ustun export qilinadi`}
+            title={
+              selectedIntegrations.length > 0
+                ? `Tanlangan ${selectedIntegrations.length} ta integratsiyani export qilish (Ctrl+E)`
+                : `Barcha integratsiyalarni export qilish (Ctrl+E)`
+            }
           >
             <Download className="h-4 w-4 mr-2" />
-            Excel yuklab olish
-            {visibleColumns.length > 0 && (
+            {selectedIntegrations.length > 0
+              ? "Tanlanganlarni export"
+              : "Excel yuklab olish"}
+            {selectedIntegrations.length > 0 && (
               <span className="ml-1 text-xs opacity-75">
-                ({visibleColumns.length})
+                ({selectedIntegrations.length})
               </span>
             )}
           </Button>
@@ -465,6 +546,8 @@ export default function IntegrationsPage() {
           onDelete={handleDelete}
           userRole="Administrator"
           selectedColumns={visibleColumns}
+          selectedIntegrations={selectedIntegrations}
+          onSelectionChange={setSelectedIntegrations}
         />
       )}
 
@@ -525,6 +608,12 @@ export default function IntegrationsPage() {
         open={showForm}
         onOpenChange={setShowForm}
         onSave={handleSave}
+      />
+
+      {/* Shortcuts Modal */}
+      <ShortcutsModal
+        isOpen={isShortcutsModalOpen}
+        onClose={() => setIsShortcutsModalOpen(false)}
       />
     </div>
   );

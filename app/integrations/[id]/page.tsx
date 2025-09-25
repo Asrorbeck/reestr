@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { Integration, IntegrationTab } from "@/lib/types";
 import { mockIntegrations } from "@/lib/mock-data";
@@ -24,6 +24,7 @@ import {
   User,
   Phone,
   Mail,
+  FileCheck,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -47,23 +48,16 @@ export default function IntegrationDetailPage() {
     defaultProjectStructure
   );
 
-  // Sahifa tepasiga skroll qilish uchun ref
-  const topRef = useRef<HTMLDivElement>(null);
-
   // Tab o'zgarganida tepaga skroll qilish
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
     // Darhol skroll qilish
     setTimeout(() => {
-      if (topRef.current) {
-        topRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      } else {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    }, 50);
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }, 100);
   };
 
   // Orqaga qaytish funksiyasi
@@ -481,7 +475,6 @@ export default function IntegrationDetailPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <div ref={topRef}></div>
       <div className="flex gap-6">
         {/* Main Content */}
         <div className="flex-1">
@@ -511,31 +504,54 @@ export default function IntegrationDetailPage() {
             </div>
           </div>
 
-          {renderContent()}
-        </div>
+          {/* Tabs Navigation */}
+          <div className="mb-8">
+            <div className="border-b border-gray-200 dark:border-gray-700">
+              <nav className="-mb-px flex space-x-8">
+                {projectStructure.map((item) => {
+                  const isActive = activeTab === item.id;
+                  const getTabIcon = (tabId: string) => {
+                    switch (tabId) {
+                      case "passport":
+                        return <FileCheck className="h-4 w-4" />;
+                      default:
+                        return <FileText className="h-4 w-4" />;
+                    }
+                  };
 
-        {/* Sidebar */}
-        <div className="w-80 space-y-6 max-h-screen overflow-y-auto sticky top-6">
-          {/* Project Structure Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Loyiha tuzilmasi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {projectStructure.map((item) => (
-                  <Button
-                    key={item.id}
-                    variant={activeTab === item.id ? "default" : "ghost"}
-                    className="w-full justify-start"
-                    onClick={() => handleTabChange(item.id)}
-                  >
-                    {item.label}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleTabChange(item.id)}
+                      className={cn(
+                        "group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200",
+                        isActive
+                          ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "mr-2 transition-colors duration-200",
+                          isActive
+                            ? "text-blue-600 dark:text-blue-400"
+                            : "text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-400"
+                        )}
+                      >
+                        {getTabIcon(item.id)}
+                      </span>
+                      {item.label}
+                      {isActive && (
+                        <span className="ml-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
+
+          {renderContent()}
         </div>
       </div>
     </div>

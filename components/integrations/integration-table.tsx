@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Eye,
   Building2,
@@ -30,6 +31,8 @@ interface IntegrationTableProps {
   onDelete?: (integration: Integration) => void;
   userRole?: "Administrator" | "Operator" | "Viewer";
   selectedColumns?: string[];
+  selectedIntegrations?: string[];
+  onSelectionChange?: (selectedIds: string[]) => void;
 }
 
 const columnConfig = {
@@ -70,10 +73,42 @@ export function IntegrationTable({
   onDelete,
   userRole = "Administrator",
   selectedColumns = [],
+  selectedIntegrations = [],
+  onSelectionChange,
 }: IntegrationTableProps) {
   // Default to all columns if none selected
   const visibleColumns =
     selectedColumns.length > 0 ? selectedColumns : Object.keys(columnConfig);
+
+  // Selection handlers
+  const handleSelectAll = () => {
+    if (onSelectionChange) {
+      if (selectedIntegrations.length === integrations.length) {
+        onSelectionChange([]);
+      } else {
+        onSelectionChange(integrations.map((integration) => integration.id));
+      }
+    }
+  };
+
+  const handleSelectOne = (integrationId: string) => {
+    if (onSelectionChange) {
+      if (selectedIntegrations.includes(integrationId)) {
+        onSelectionChange(
+          selectedIntegrations.filter((id) => id !== integrationId)
+        );
+      } else {
+        onSelectionChange([...selectedIntegrations, integrationId]);
+      }
+    }
+  };
+
+  const isAllSelected =
+    selectedIntegrations.length === integrations.length &&
+    integrations.length > 0;
+  const isIndeterminate =
+    selectedIntegrations.length > 0 &&
+    selectedIntegrations.length < integrations.length;
 
   const renderCell = (integration: Integration, columnKey: string) => {
     switch (columnKey) {
@@ -260,6 +295,7 @@ export function IntegrationTable({
         <Table className="w-full">
           <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
             <TableRow className="hover:bg-transparent border-b border-gray-200 dark:border-gray-600">
+              <TableHead className="py-4 text-center w-12"></TableHead>
               <TableHead className="font-semibold text-gray-900 dark:text-gray-100 py-4 text-center pl-6 ">
                 T/p
               </TableHead>
@@ -290,7 +326,16 @@ export function IntegrationTable({
                     ? "bg-white dark:bg-gray-900"
                     : "bg-gray-50/30 dark:bg-gray-800/20"
                 }`}
+                data-integration-row
               >
+                <TableCell className="text-center py-4 pl-6 w-12">
+                  <Checkbox
+                    checked={selectedIntegrations.includes(integration.id)}
+                    onCheckedChange={() => handleSelectOne(integration.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="border-2 border-gray-300 dark:border-gray-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:text-white hover:border-blue-400 dark:hover:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 dark:data-[state=checked]:bg-blue-600 dark:data-[state=checked]:text-white [&>span]:text-white [&>span]:dark:text-white"
+                  />
+                </TableCell>
                 <TableCell className="text-center text-gray-600 dark:text-gray-400 py-4 pl-6 ">
                   <div className="font-mono text-sm">{index + 1}</div>
                 </TableCell>
@@ -312,9 +357,13 @@ export function IntegrationTable({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => onDelete?.(integration)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete?.(integration);
+                        }}
                         className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-950/50 dark:hover:border-red-700 transition-colors p-2"
                         title="O'chirish"
+                        data-delete-button
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
