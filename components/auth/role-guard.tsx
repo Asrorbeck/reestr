@@ -3,21 +3,22 @@
 import type { ReactNode } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShieldX } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 interface RoleGuardProps {
   children: ReactNode;
   allowedRoles: Array<"Administrator" | "Operator" | "Viewer">;
-  userRole?: "Administrator" | "Operator" | "Viewer";
   fallback?: ReactNode;
 }
 
 export function RoleGuard({
   children,
   allowedRoles,
-  userRole = "Administrator", // Mock current user role
   fallback,
 }: RoleGuardProps) {
-  if (!allowedRoles.includes(userRole)) {
+  const { user } = useAuth();
+
+  if (!user || !allowedRoles.includes(user.role as any)) {
     return (
       fallback || (
         <Alert variant="destructive">

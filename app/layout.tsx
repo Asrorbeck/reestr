@@ -1,8 +1,9 @@
 import type React from "react";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Header } from "@/components/layout/header";
-import { Sidebar } from "@/components/layout/sidebar";
+import { ConditionalLayout } from "@/components/layout/conditional-layout";
+import { AuthProvider } from "@/hooks/use-auth";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -28,13 +29,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="flex h-screen bg-background">
-            <Sidebar />
-            <div className="flex flex-1 flex-col overflow-hidden">
-              <Header />
-              <main className="flex-1 overflow-y-auto p-6">{children}</main>
-            </div>
-          </div>
+          <AuthProvider>
+            <ConditionalLayout>{children}</ConditionalLayout>
+            <Toaster />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
