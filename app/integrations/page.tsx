@@ -24,7 +24,6 @@ import { ConditionsModal } from "@/components/integrations/conditions-modal";
 import { AdvancedFilter } from "@/components/integrations/advanced-filter";
 import Pagination from "@/components/integrations/pagination";
 import { ShortcutsModal } from "@/components/integrations/shortcuts-modal";
-import { RoleGuard } from "@/components/auth/role-guard";
 import { exportFilteredToExcel } from "@/lib/excel-export";
 import { useIntegrationShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import {
@@ -393,12 +392,10 @@ export default function IntegrationsPage() {
           </p>
         </div>
 
-        <RoleGuard allowedRoles={["Administrator", "Operator"]}>
-          <Button onClick={handleAdd}>
-            <Plus className="h-4 w-4 mr-2" />
-            Yangi integratsiya
-          </Button>
-        </RoleGuard>
+        <Button onClick={handleAdd}>
+          <Plus className="h-4 w-4 mr-2" />
+          Yangi integratsiya
+        </Button>
       </div>
 
       {/* Advanced Filter */}

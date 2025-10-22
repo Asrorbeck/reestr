@@ -6,15 +6,12 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth } from "@/hooks/use-auth";
 
 export function Header() {
-  const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = () => {
-    logout();
     setIsMenuOpen(false);
   };
 
@@ -78,9 +75,7 @@ export function Header() {
             >
               <Avatar className="h-8 w-8">
                 <AvatarImage src="/avatars/01.png" alt="@username" />
-                <AvatarFallback>
-                  {user ? getUserInitials(user.name) : "U"}
-                </AvatarFallback>
+                <AvatarFallback>U</AvatarFallback>
               </Avatar>
             </Button>
 
@@ -90,13 +85,13 @@ export function Header() {
                 <div className="p-3 border-b border-gray-200 dark:border-gray-700">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {user?.name || "Foydalanuvchi"}
+                      Foydalanuvchi
                     </p>
                     <p className="text-xs leading-none text-gray-500 dark:text-gray-400">
-                      {user?.email || "email@example.com"}
+                      email@example.com
                     </p>
                     <p className="text-xs leading-none text-gray-500 dark:text-gray-400">
-                      {user?.role || "Rol"}
+                      Administrator
                     </p>
                   </div>
                 </div>

@@ -152,7 +152,10 @@ export function IntegrationTable({
                   variant="link"
                   size="sm"
                   className="p-0 h-auto text-blue-600 hover:text-blue-800 text-xs mt-1"
-                  onClick={() => onViewPurpose?.(integration)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewPurpose?.(integration);
+                  }}
                 >
                   ...davomini o'qish
                 </Button>
@@ -213,7 +216,10 @@ export function IntegrationTable({
                   variant="link"
                   size="sm"
                   className="p-0 h-auto text-blue-600 hover:text-blue-800 text-xs mt-1"
-                  onClick={() => onViewConditions?.(integration)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewConditions?.(integration);
+                  }}
                 >
                   ...davomini o'qish
                 </Button>
@@ -321,12 +327,13 @@ export function IntegrationTable({
             {integrations.map((integration, index) => (
               <TableRow
                 key={integration.id}
-                className={`hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-all duration-200 border-b border-gray-100 dark:border-gray-700 ${
+                className={`hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-all duration-200 border-b border-gray-100 dark:border-gray-700 cursor-pointer ${
                   index % 2 === 0
                     ? "bg-white dark:bg-gray-900"
                     : "bg-gray-50/30 dark:bg-gray-800/20"
                 }`}
                 data-integration-row
+                onClick={() => onView?.(integration)}
               >
                 <TableCell className="text-center py-4 pl-6 w-12">
                   <Checkbox
@@ -347,7 +354,10 @@ export function IntegrationTable({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onView?.(integration)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onView?.(integration);
+                      }}
                       className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-950/50 dark:hover:border-blue-700 transition-colors p-2"
                       title="Ko'rish"
                     >

@@ -2,7 +2,6 @@ import type React from "react";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ConditionalLayout } from "@/components/layout/conditional-layout";
-import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -29,10 +28,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <ConditionalLayout>{children}</ConditionalLayout>
-            <Toaster />
-          </AuthProvider>
+          <ConditionalLayout>{children}</ConditionalLayout>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
