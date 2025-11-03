@@ -3,8 +3,8 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Integration } from "@/lib/types";
-import { mockIntegrations } from "@/lib/mock-data";
-import { localStorageUtils } from "@/lib/localStorage";
+import { supabaseUtils } from "@/lib/supabaseUtils";
+import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,139 +14,208 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { IntegrationCard } from "@/components/integrations/integration-card";
 import { IntegrationTable } from "@/components/integrations/integration-table";
 import { IntegrationForm } from "@/components/integrations/integration-form";
-import TableHeaderFilters from "@/components/integrations/table-header-filters";
-import DetailModal from "@/components/integrations/detail-modal";
-import { PurposeModal } from "@/components/integrations/purpose-modal";
-import { ConditionsModal } from "@/components/integrations/conditions-modal";
 import { AdvancedFilter } from "@/components/integrations/advanced-filter";
 import Pagination from "@/components/integrations/pagination";
 import { ShortcutsModal } from "@/components/integrations/shortcuts-modal";
 import { exportFilteredToExcel } from "@/lib/excel-export";
 import { useIntegrationShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useAuth } from "@/lib/auth";
+import { getRolePermissions } from "@/lib/permissions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Plus,
-  Grid3X3,
-  Table as TableIcon,
   Search,
   Download,
   Keyboard,
   RefreshCw,
+  Loader2,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface HeaderFilters {
-  nomi: string;
-  vazirlik: string;
-  tashkilotShakli: string;
+  axborotTizimiNomi: string;
+  integratsiyaUsuli: string;
+  malumotNomi: string;
+  tashkilotNomiVaShakli: string;
+  asosiyMaqsad: string;
   normativHuquqiyHujjat: string;
   texnologikYoriknomaMavjudligi: string;
-  texnologiya: string;
-  qaysiTashkilotTomondan: string;
-  mspdManzil: string;
-  axborotTizimiNomi: string;
+  malumotFormati: string;
+  maqlumotAlmashishSharti: string;
+  yangilanishDavriyligi: string;
+  malumotHajmi: string;
+  aloqaKanali: string;
+  oxirgiUzatishVaqti: string;
+  markaziyBankAloqa: string;
+  hamkorAloqa: string;
   status: string;
+  izoh: string;
 }
 
 export default function IntegrationsPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const role = user?.role as "Administrator" | "Operator" | "Viewer" | undefined;
+  const permissions = getRolePermissions(role);
+  
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingIntegration, setEditingIntegration] =
     useState<Integration | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [viewMode, setViewMode] = useState<"card" | "table">("table");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [headerFilters, setHeaderFilters] = useState<HeaderFilters>({
-    nomi: "",
-    vazirlik: "",
-    tashkilotShakli: "all",
-    normativHuquqiyHujjat: "",
-    texnologikYoriknomaMavjudligi: "all",
-    texnologiya: "all",
-    qaysiTashkilotTomondan: "",
-    mspdManzil: "",
     axborotTizimiNomi: "",
+    integratsiyaUsuli: "",
+    malumotNomi: "",
+    tashkilotNomiVaShakli: "",
+    asosiyMaqsad: "",
+    normativHuquqiyHujjat: "",
+    texnologikYoriknomaMavjudligi: "",
+    malumotFormati: "all",
+    maqlumotAlmashishSharti: "",
+    yangilanishDavriyligi: "",
+    malumotHajmi: "",
+    aloqaKanali: "",
+    oxirgiUzatishVaqti: "",
+    markaziyBankAloqa: "",
+    hamkorAloqa: "",
     status: "all",
+    izoh: "",
   });
-  const [selectedIntegration, setSelectedIntegration] =
-    useState<Integration | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [purposeIntegration, setPurposeIntegration] =
-    useState<Integration | null>(null);
-  const [isPurposeModalOpen, setIsPurposeModalOpen] = useState(false);
-  const [conditionsIntegration, setConditionsIntegration] =
-    useState<Integration | null>(null);
-  const [isConditionsModalOpen, setIsConditionsModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
   const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>(
     []
   );
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [integrationToDelete, setIntegrationToDelete] =
+    useState<Integration | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    "nomi",
-    "tashkilotShakli",
+    "axborotTizimiNomi",
+    "integratsiyaUsuli",
+    "malumotNomi",
+    "tashkilotNomiVaShakli",
     "asosiyMaqsad",
     "normativHuquqiyHujjat",
     "texnologikYoriknomaMavjudligi",
-    "texnologiya",
+    "malumotFormati",
     "maqlumotAlmashishSharti",
-    "sorovlarOrtachaOylik",
-    "qaysiTashkilotTomondan",
-    "mspdManzil",
-    "axborotTizimiNomi",
+    "yangilanishDavriyligi",
+    "malumotHajmi",
+    "aloqaKanali",
+    "oxirgiUzatishVaqti",
+    "markaziyBankAloqa",
+    "hamkorAloqa",
     "status",
+    "izoh",
   ]);
 
   // Search and filter logic
   const filteredIntegrations = useMemo(() => {
     return integrations.filter((integration) => {
-      // Search term filter
+      // Search term filter - search across all string fields
       const matchesSearch =
         searchTerm === "" ||
-        integration.nomi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        integration.vazirlik.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        integration.texnologiya
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        integration.tashkilotTuri
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        integration.qaysiTashkilotTomondan
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
         integration.axborotTizimiNomi
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        integration.tashkilotShakli
+        integration.integratsiyaUsuli
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        integration.malumotNomi
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        integration.tashkilotNomiVaShakli
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        integration.asosiyMaqsad
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
         integration.normativHuquqiyHujjat
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        integration.mspdManzil.toLowerCase().includes(searchTerm.toLowerCase());
+        integration.texnologikYoriknomaMavjudligi
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        integration.maqlumotAlmashishSharti
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        integration.yangilanishDavriyligi
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        integration.malumotHajmi
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        integration.aloqaKanali
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        integration.oxirgiUzatishVaqti
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        integration.markaziyBankAloqa
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        integration.hamkorAloqa
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        integration.izoh.toLowerCase().includes(searchTerm.toLowerCase());
 
       // Header filters
-      const matchesNomi =
-        headerFilters.nomi === "" ||
-        integration.nomi
+      const matchesAxborotTizimiNomi =
+        headerFilters.axborotTizimiNomi === "" ||
+        integration.axborotTizimiNomi
           .toLowerCase()
-          .includes(headerFilters.nomi.toLowerCase());
+          .includes(headerFilters.axborotTizimiNomi.toLowerCase());
 
-      const matchesVazirlik =
-        headerFilters.vazirlik === "" ||
-        integration.vazirlik
+      const matchesIntegratsiyaUsuli =
+        headerFilters.integratsiyaUsuli === "" ||
+        integration.integratsiyaUsuli
           .toLowerCase()
-          .includes(headerFilters.vazirlik.toLowerCase());
+          .includes(headerFilters.integratsiyaUsuli.toLowerCase());
 
-      const matchesTashkilotShakli =
-        headerFilters.tashkilotShakli === "all" ||
-        integration.tashkilotShakli === headerFilters.tashkilotShakli;
+      const matchesMalumotNomi =
+        headerFilters.malumotNomi === "" ||
+        integration.malumotNomi
+          .toLowerCase()
+          .includes(headerFilters.malumotNomi.toLowerCase());
+
+      const matchesTashkilotNomiVaShakli =
+        headerFilters.tashkilotNomiVaShakli === "" ||
+        integration.tashkilotNomiVaShakli
+          .toLowerCase()
+          .includes(headerFilters.tashkilotNomiVaShakli.toLowerCase());
+
+      const matchesAsosiyMaqsad =
+        headerFilters.asosiyMaqsad === "" ||
+        integration.asosiyMaqsad
+          .toLowerCase()
+          .includes(headerFilters.asosiyMaqsad.toLowerCase());
 
       const matchesNormativHujjat =
         headerFilters.normativHuquqiyHujjat === "" ||
@@ -155,48 +224,86 @@ export default function IntegrationsPage() {
           .includes(headerFilters.normativHuquqiyHujjat.toLowerCase());
 
       const matchesTexnologikYoriknoma =
-        headerFilters.texnologikYoriknomaMavjudligi === "all" ||
-        integration.texnologikYoriknomaMavjudligi.toString() ===
-          headerFilters.texnologikYoriknomaMavjudligi;
-
-      const matchesTexnologiya =
-        headerFilters.texnologiya === "all" ||
-        integration.texnologiya === headerFilters.texnologiya;
-
-      const matchesQaysiTashkilot =
-        headerFilters.qaysiTashkilotTomondan === "" ||
-        integration.qaysiTashkilotTomondan
+        headerFilters.texnologikYoriknomaMavjudligi === "" ||
+        integration.texnologikYoriknomaMavjudligi
           .toLowerCase()
-          .includes(headerFilters.qaysiTashkilotTomondan.toLowerCase());
+          .includes(headerFilters.texnologikYoriknomaMavjudligi.toLowerCase());
 
-      const matchesMspdManzil =
-        headerFilters.mspdManzil === "" ||
-        integration.mspdManzil
-          .toLowerCase()
-          .includes(headerFilters.mspdManzil.toLowerCase());
+      const matchesMalumotFormati =
+        headerFilters.malumotFormati === "all" ||
+        integration.malumotFormati === headerFilters.malumotFormati;
 
-      const matchesAxborotTizimi =
-        headerFilters.axborotTizimiNomi === "" ||
-        integration.axborotTizimiNomi
+      const matchesMaqlumotAlmashishSharti =
+        headerFilters.maqlumotAlmashishSharti === "" ||
+        integration.maqlumotAlmashishSharti
           .toLowerCase()
-          .includes(headerFilters.axborotTizimiNomi.toLowerCase());
+          .includes(headerFilters.maqlumotAlmashishSharti.toLowerCase());
+
+      const matchesYangilanishDavriyligi =
+        headerFilters.yangilanishDavriyligi === "" ||
+        integration.yangilanishDavriyligi
+          .toLowerCase()
+          .includes(headerFilters.yangilanishDavriyligi.toLowerCase());
+
+      const matchesMalumotHajmi =
+        headerFilters.malumotHajmi === "" ||
+        integration.malumotHajmi
+          .toLowerCase()
+          .includes(headerFilters.malumotHajmi.toLowerCase());
+
+      const matchesAloqaKanali =
+        headerFilters.aloqaKanali === "" ||
+        integration.aloqaKanali
+          .toLowerCase()
+          .includes(headerFilters.aloqaKanali.toLowerCase());
+
+      const matchesOxirgiUzatishVaqti =
+        headerFilters.oxirgiUzatishVaqti === "" ||
+        integration.oxirgiUzatishVaqti
+          .toLowerCase()
+          .includes(headerFilters.oxirgiUzatishVaqti.toLowerCase());
+
+      const matchesMarkaziyBankAloqa =
+        headerFilters.markaziyBankAloqa === "" ||
+        integration.markaziyBankAloqa
+          .toLowerCase()
+          .includes(headerFilters.markaziyBankAloqa.toLowerCase());
+
+      const matchesHamkorAloqa =
+        headerFilters.hamkorAloqa === "" ||
+        integration.hamkorAloqa
+          .toLowerCase()
+          .includes(headerFilters.hamkorAloqa.toLowerCase());
 
       const matchesStatus =
         headerFilters.status === "all" ||
         integration.status === headerFilters.status;
 
+      const matchesIzoh =
+        headerFilters.izoh === "" ||
+        integration.izoh
+          .toLowerCase()
+          .includes(headerFilters.izoh.toLowerCase());
+
       return (
         matchesSearch &&
-        matchesNomi &&
-        matchesVazirlik &&
-        matchesTashkilotShakli &&
+        matchesAxborotTizimiNomi &&
+        matchesIntegratsiyaUsuli &&
+        matchesMalumotNomi &&
+        matchesTashkilotNomiVaShakli &&
+        matchesAsosiyMaqsad &&
         matchesNormativHujjat &&
         matchesTexnologikYoriknoma &&
-        matchesTexnologiya &&
-        matchesQaysiTashkilot &&
-        matchesMspdManzil &&
-        matchesAxborotTizimi &&
-        matchesStatus
+        matchesMalumotFormati &&
+        matchesMaqlumotAlmashishSharti &&
+        matchesYangilanishDavriyligi &&
+        matchesMalumotHajmi &&
+        matchesAloqaKanali &&
+        matchesOxirgiUzatishVaqti &&
+        matchesMarkaziyBankAloqa &&
+        matchesHamkorAloqa &&
+        matchesStatus &&
+        matchesIzoh
       );
     });
   }, [integrations, searchTerm, headerFilters]);
@@ -213,67 +320,76 @@ export default function IntegrationsPage() {
     router.push(`/integrations/${integration.id}`);
   };
 
-  const handleViewPurpose = (integration: Integration) => {
-    setPurposeIntegration(integration);
-    setIsPurposeModalOpen(true);
-  };
-
-  const handleViewConditions = (integration: Integration) => {
-    setConditionsIntegration(integration);
-    setIsConditionsModalOpen(true);
-  };
-
   const handleDelete = (integration: Integration) => {
-    if (
-      window.confirm(
-        `"${integration.nomi}" integratsiyasini o'chirishni xohlaysizmi?`
-      )
-    ) {
-      try {
-        const updatedIntegrations = integrations.filter(
-          (item) => item.id !== integration.id
+    setIntegrationToDelete(integration);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!integrationToDelete) return;
+
+    try {
+      setIsDeleting(integrationToDelete.id);
+      const success = await supabaseUtils.deleteIntegration(
+        integrationToDelete.id
+      );
+      if (success) {
+        setIntegrations((prev) =>
+          prev.filter((i) => i.id !== integrationToDelete.id)
         );
-        localStorageUtils.saveIntegrations(updatedIntegrations);
-        setIntegrations(updatedIntegrations);
-        console.log("Integratsiya o'chirildi:", integration.nomi);
-      } catch (error) {
-        console.error("Integratsiyani o'chirishda xatolik:", error);
+        console.log(
+          "Integratsiya o'chirildi:",
+          integrationToDelete.axborotTizimiNomi
+        );
+      } else {
+        toast.error("Integratsiyani o'chirishda xatolik yuz berdi");
       }
+    } catch (error) {
+      console.error("Integratsiyani o'chirishda xatolik:", error);
+      toast.error("Integratsiyani o'chirishda xatolik yuz berdi");
+    } finally {
+      setIsDeleting(null);
+      setDeleteConfirmOpen(false);
+      setIntegrationToDelete(null);
     }
   };
 
   const handleEdit = (integration: Integration) => {
-    setEditingIntegration(integration);
-    setShowForm(true);
+    router.push(`/integrations/edit/${integration.id}`);
   };
 
   const handleAdd = () => {
     router.push("/integrations/new");
   };
 
-  const handleSave = (integrationData: Partial<Integration>) => {
-    if (editingIntegration) {
-      // Update existing integration
-      const updatedIntegration = localStorageUtils.updateIntegration(
-        editingIntegration.id,
-        integrationData
-      );
-
-      if (updatedIntegration) {
-        setIntegrations((prev) =>
-          prev.map((item) =>
-            item.id === editingIntegration.id ? updatedIntegration : item
-          )
+  const handleSave = async (integrationData: Partial<Integration>) => {
+    try {
+      if (editingIntegration) {
+        // Update existing integration
+        const updatedIntegration = await supabaseUtils.updateIntegration(
+          editingIntegration.id,
+          integrationData
         );
+
+        if (updatedIntegration) {
+          setIntegrations((prev) =>
+            prev.map((item) =>
+              item.id === editingIntegration.id ? updatedIntegration : item
+            )
+          );
+        }
+      } else {
+        // Add new integration
+        const { id, ...integrationDataWithoutId } =
+          integrationData as Integration;
+        const newIntegration = await supabaseUtils.addIntegration(
+          integrationDataWithoutId
+        );
+        setIntegrations((prev) => [newIntegration, ...prev]);
       }
-    } else {
-      // Add new integration
-      const { id, ...integrationDataWithoutId } =
-        integrationData as Integration;
-      const newIntegration = localStorageUtils.addIntegration(
-        integrationDataWithoutId
-      );
-      setIntegrations((prev) => [newIntegration, ...prev]);
+    } catch (error) {
+      console.error("Integratsiyani saqlashda xatolik:", error);
+      toast.error("Integratsiyani saqlashda xatolik yuz berdi");
     }
   };
 
@@ -282,20 +398,24 @@ export default function IntegrationsPage() {
     setCurrentPage(1);
   }, [searchTerm, headerFilters]);
 
-  // Handle mounting and localStorage loading
+  // Handle mounting and Supabase loading
   useEffect(() => {
-    setMounted(true);
+    const loadIntegrations = async () => {
+      try {
+        setIsLoading(true);
+        setMounted(true);
+        // Supabase'dan ma'lumotlarni o'qish
+        const savedIntegrations = await supabaseUtils.getIntegrations();
+        setIntegrations(savedIntegrations);
+      } catch (error) {
+        console.error("Integratsiyalarni yuklashda xatolik:", error);
+        setIntegrations([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    // LocalStorage'dan ma'lumotlarni o'qish
-    const savedIntegrations = localStorageUtils.getIntegrations();
-
-    // Agar LocalStorage'da ma'lumot yo'q bo'lsa, mock ma'lumotlarni yuklash
-    if (savedIntegrations.length === 0) {
-      localStorageUtils.loadMockData(mockIntegrations);
-      setIntegrations(mockIntegrations);
-    } else {
-      setIntegrations(savedIntegrations);
-    }
+    loadIntegrations();
 
     // Sahifa hajmini o'qish
     const saved = localStorage.getItem("integrations-page-size");
@@ -392,10 +512,12 @@ export default function IntegrationsPage() {
           </p>
         </div>
 
-        <Button onClick={handleAdd}>
-          <Plus className="h-4 w-4 mr-2" />
-          Yangi integratsiya
-        </Button>
+        {permissions.canCreateIntegrations && (
+          <Button onClick={handleAdd}>
+            <Plus className="h-4 w-4 mr-2" />
+            Yangi integratsiya
+          </Button>
+        )}
       </div>
 
       {/* Advanced Filter */}
@@ -445,12 +567,25 @@ export default function IntegrationsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.location.reload()}
+            onClick={async () => {
+              setIsLoading(true);
+              try {
+                const savedIntegrations = await supabaseUtils.getIntegrations();
+                setIntegrations(savedIntegrations);
+              } catch (error) {
+                console.error("Yangilashda xatolik:", error);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+            disabled={isLoading}
             className="h-8 px-3"
             title="Sahifani yangilash"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Yangilash
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+            />
+            {isLoading ? "Yuklanmoqda..." : "Yangilash"}
           </Button>
 
           {/* Excel Export Button */}
@@ -500,104 +635,94 @@ export default function IntegrationsPage() {
               </SelectContent>
             </Select>
           </div>
-
-          {/* View Toggle */}
-          <div className="flex items-center space-x-1 bg-muted p-1 rounded-lg">
-            <Button
-              variant={viewMode === "card" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("card")}
-              className="h-8 px-3"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === "table" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("table")}
-              className="h-8 px-3"
-            >
-              <TableIcon className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </div>
 
       {/* Integration Content */}
-      {viewMode === "card" ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {paginatedIntegrations.map((integration) => (
-            <IntegrationCard
-              key={integration.id}
-              integration={integration}
-              onView={handleView}
-            />
-          ))}
+      {isLoading ? (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-20">
+                  <Skeleton className="h-4 w-4" />
+                </TableHead>
+                <TableHead className="text-center">
+                  <Skeleton className="h-4 w-12 mx-auto" />
+                </TableHead>
+                {visibleColumns.slice(0, 5).map((key) => (
+                  <TableHead key={key}>
+                    <Skeleton className="h-4 w-32" />
+                  </TableHead>
+                ))}
+                <TableHead className="text-right">
+                  <Skeleton className="h-4 w-16 ml-auto" />
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...Array(5)].map((_, index) => (
+                <TableRow key={index}>
+                  <TableCell>
+                    <div className="flex items-center justify-center">
+                      <Skeleton className="h-4 w-4" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Skeleton className="h-4 w-8 mx-auto" />
+                  </TableCell>
+                  {visibleColumns.slice(0, 5).map((key) => (
+                    <TableCell key={key}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Skeleton className="h-8 w-8" />
+                      <Skeleton className="h-8 w-8" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       ) : (
-        <IntegrationTable
-          integrations={paginatedIntegrations}
-          onView={handleView}
-          onViewPurpose={handleViewPurpose}
-          onViewConditions={handleViewConditions}
-          onDelete={handleDelete}
-          userRole="Administrator"
-          selectedColumns={visibleColumns}
-          selectedIntegrations={selectedIntegrations}
-          onSelectionChange={setSelectedIntegrations}
-        />
+        <>
+          <IntegrationTable
+            integrations={paginatedIntegrations}
+            onView={handleView}
+            onEdit={permissions.canEditIntegrations ? handleEdit : undefined}
+            onDelete={permissions.canDeleteIntegrations ? handleDelete : undefined}
+            userRole={role || "Viewer"}
+            selectedColumns={visibleColumns}
+            selectedIntegrations={selectedIntegrations}
+            onSelectionChange={setSelectedIntegrations}
+            isDeleting={isDeleting}
+          />
+
+          {filteredIntegrations.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                {searchTerm
+                  ? "Qidiruv bo'yicha natija topilmadi"
+                  : "Hech qanday integratsiya topilmadi"}
+              </p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {filteredIntegrations.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={filteredIntegrations.length}
+              onPageChange={handlePageChange}
+            />
+          )}
+        </>
       )}
-
-      {filteredIntegrations.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">
-            {searchTerm
-              ? "Qidiruv bo'yicha natija topilmadi"
-              : "Hech qanday integratsiya topilmadi"}
-          </p>
-        </div>
-      )}
-
-      {/* Pagination */}
-      {filteredIntegrations.length > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          pageSize={pageSize}
-          totalItems={filteredIntegrations.length}
-          onPageChange={handlePageChange}
-        />
-      )}
-
-      {/* Detail Modal */}
-      <DetailModal
-        integration={selectedIntegration}
-        isOpen={isDetailModalOpen}
-        onClose={() => {
-          setIsDetailModalOpen(false);
-          setSelectedIntegration(null);
-        }}
-      />
-
-      {/* Purpose Modal */}
-      <PurposeModal
-        integration={purposeIntegration}
-        isOpen={isPurposeModalOpen}
-        onClose={() => {
-          setIsPurposeModalOpen(false);
-          setPurposeIntegration(null);
-        }}
-      />
-
-      {/* Conditions Modal */}
-      <ConditionsModal
-        integration={conditionsIntegration}
-        isOpen={isConditionsModalOpen}
-        onClose={() => {
-          setIsConditionsModalOpen(false);
-          setConditionsIntegration(null);
-        }}
-      />
 
       {/* Form Modal */}
       <IntegrationForm
@@ -612,6 +737,28 @@ export default function IntegrationsPage() {
         isOpen={isShortcutsModalOpen}
         onClose={() => setIsShortcutsModalOpen(false)}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Integratsiyani o'chirish</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{integrationToDelete?.axborotTizimiNomi}" integratsiyasini
+              o'chirishni tasdiqlaysizmi? Bu amalni bekor qilib bo'lmaydi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              O'chirish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

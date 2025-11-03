@@ -2,7 +2,9 @@ import type React from "react";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ConditionalLayout } from "@/components/layout/conditional-layout";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { Toaster as HotToaster } from "react-hot-toast";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -28,8 +30,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ConditionalLayout>{children}</ConditionalLayout>
+          <AuthProvider>
+            <ConditionalLayout>{children}</ConditionalLayout>
+          </AuthProvider>
           <Toaster />
+          <HotToaster position="top-right" />
         </ThemeProvider>
       </body>
     </html>

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { Integration } from "@/lib/types"
-import { mockIntegrations } from "@/lib/mock-data"
+import { supabaseUtils } from "@/lib/supabaseUtils"
 import { AdvancedFilters } from "@/components/search/advanced-filters"
 import { EfficiencyChart } from "@/components/analytics/efficiency-chart"
 import { MinistryActivity } from "@/components/analytics/ministry-activity"
@@ -27,6 +27,7 @@ export default function AnalyticsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null)
   const [showModal, setShowModal] = useState(false)
+  const [integrations, setIntegrations] = useState<Integration[]>([])
   const [filters, setFilters] = useState<FilterState>({
     vazirlik: "",
     texnologiya: "",
@@ -36,18 +37,31 @@ export default function AnalyticsPage() {
     dateTo: "",
   })
 
-  const filteredIntegrations = mockIntegrations.filter((integration) => {
+  useEffect(() => {
+    const loadIntegrations = async () => {
+      try {
+        const savedIntegrations = await supabaseUtils.getIntegrations();
+        setIntegrations(savedIntegrations);
+      } catch (error) {
+        console.error("Integratsiyalarni yuklashda xatolik:", error);
+        setIntegrations([]);
+      }
+    };
+    loadIntegrations();
+  }, [])
+
+  const filteredIntegrations = integrations.filter((integration) => {
     const matchesSearch =
-      integration.nomi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      integration.vazirlik.toLowerCase().includes(searchTerm.toLowerCase())
+      integration.axborotTizimiNomi.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      integration.tashkilotNomiVaShakli.toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesFilters =
-      (!filters.vazirlik || integration.vazirlik === filters.vazirlik) &&
-      (!filters.texnologiya || integration.texnologiya === filters.texnologiya) &&
+      (!filters.vazirlik || integration.tashkilotNomiVaShakli.includes(filters.vazirlik)) &&
+      (!filters.texnologiya || integration.malumotFormati === filters.texnologiya) &&
       (!filters.status || integration.status === filters.status) &&
-      (!filters.yonalish || integration.yonalish === filters.yonalish) &&
-      (!filters.dateFrom || integration.sana >= filters.dateFrom) &&
-      (!filters.dateTo || integration.sana <= filters.dateTo)
+      (!filters.yonalish) &&
+      (!filters.dateFrom) &&
+      (!filters.dateTo)
 
     return matchesSearch && matchesFilters
   })
@@ -69,9 +83,9 @@ export default function AnalyticsPage() {
   }
 
   // Analytics data
-  const technologyStats = mockIntegrations.reduce(
+  const technologyStats = integrations.reduce(
     (acc, integration) => {
-      acc[integration.texnologiya] = (acc[integration.texnologiya] || 0) + 1
+      acc[integration.malumotFormati] = (acc[integration.malumotFormati] || 0) + 1
       return acc
     },
     {} as Record<string, number>,
@@ -82,7 +96,7 @@ export default function AnalyticsPage() {
     value,
   }))
 
-  const statusStats = mockIntegrations.reduce(
+  const statusStats = integrations.reduce(
     (acc, integration) => {
       acc[integration.status] = (acc[integration.status] || 0) + 1
       return acc
@@ -91,7 +105,7 @@ export default function AnalyticsPage() {
   )
 
   const statusData = Object.entries(statusStats).map(([name, value]) => ({
-    name: name === "Active" ? "Faol" : name === "Test" ? "Test" : "Arxiv",
+    name: name === "faol" ? "Faol" : name === "testda" ? "Testda" : name === "rejalashtirilgan" ? "Rejalashtirilgan" : "Muammoli",
     value,
   }))
 
@@ -117,7 +131,7 @@ export default function AnalyticsPage() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockIntegrations.length}</div>
+            <div className="text-2xl font-bold">{integrations.length}</div>
             <p className="text-xs text-muted-foreground">Ro'yxatga olingan barcha integratsiyalar</p>
           </CardContent>
         </Card>
@@ -129,7 +143,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {mockIntegrations.filter((i) => i.status === "Active").length}
+              {integrations.filter((i) => i.status === "faol").length}
             </div>
             <p className="text-xs text-muted-foreground">Hozirda ishlab turgan integratsiyalar</p>
           </CardContent>

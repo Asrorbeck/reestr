@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { User } from "@/lib/types"
-import { mockUsers } from "@/lib/mock-data"
+import { userUtils } from "@/lib/userUtils"
+import toast from "react-hot-toast"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,8 +19,19 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, Plus, Edit, Trash2, Shield, UserCheck, UserX } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Shield, UserCheck, UserX, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const roleColors = {
   Administrator: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
@@ -34,16 +46,40 @@ const roleDescriptions = {
 }
 
 export function UserManagement() {
-  const [users, setUsers] = useState<User[]>(mockUsers)
+  const [users, setUsers] = useState<User[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [showUserModal, setShowUserModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     role: "Viewer" as User["role"],
+    password: "",
   })
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<User | null>(null)
+
+  // Foydalanuvchilarni yuklash
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    setIsLoading(true);
+    try {
+      const fetchedUsers = await userUtils.getUsers();
+      setUsers(fetchedUsers);
+    } catch (error) {
+      console.error("Foydalanuvchilarni yuklashda xatolik:", error);
+      toast.error("Foydalanuvchilarni yuklashda xatolik yuz berdi");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -57,33 +93,114 @@ export function UserManagement() {
 
   const handleAddUser = () => {
     setEditingUser(null)
-    setFormData({ name: "", email: "", role: "Viewer" })
+    setFormData({ name: "", email: "", role: "Viewer", password: "" })
     setShowUserModal(true)
   }
 
   const handleEditUser = (user: User) => {
     setEditingUser(user)
-    setFormData({ name: user.name, email: user.email, role: user.role })
+    setFormData({ name: user.name, email: user.email, role: user.role, password: "" })
     setShowUserModal(true)
   }
 
-  const handleSaveUser = () => {
-    if (editingUser) {
-      // Update existing user
-      setUsers((prev) => prev.map((user) => (user.id === editingUser.id ? { ...user, ...formData } : user)))
-    } else {
-      // Add new user
-      const newUser: User = {
-        id: Date.now().toString(),
-        ...formData,
-      }
-      setUsers((prev) => [newUser, ...prev])
+  const handleSaveUser = async () => {
+    if (!formData.name || !formData.email) {
+      toast.error("Ism va email to'ldirilishi shart");
+      return;
     }
-    setShowUserModal(false)
+
+    if (!editingUser && !formData.password) {
+      toast.error("Yangi foydalanuvchi uchun parol kiriting");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (editingUser) {
+        // Update existing user
+        await userUtils.updateUser(editingUser.id, {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+        });
+
+        // Agar parol o'zgartirilgan bo'lsa
+        if (formData.password) {
+          await userUtils.updateUserPassword(editingUser.id, formData.password);
+        }
+
+        toast.success("Foydalanuvchi muvaffaqiyatli yangilandi");
+      } else {
+        // Add new user
+        if (!formData.password) {
+          toast.error("Parol kiriting");
+          return;
+        }
+
+        await userUtils.addUser({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          password: formData.password,
+        });
+
+        toast.success("Foydalanuvchi muvaffaqiyatli qo'shildi");
+      }
+
+      await loadUsers();
+      setShowUserModal(false);
+      setFormData({ name: "", email: "", role: "Viewer", password: "" });
+    } catch (error: any) {
+      console.error("Foydalanuvchini saqlashda xatolik:", error);
+      
+      // Agar "user already exists" xatosi bo'lsa, maxsus xabar ko'rsatish
+      if (error.message?.includes("allaqachon mavjud") || 
+          error.message?.includes("already exists") ||
+          error.message?.includes("already registered")) {
+        toast.error(
+          "⚠️ Bu email bilan foydalanuvchi allaqachon mavjud.",
+          {
+            duration: 5000,
+          }
+        );
+        // Ikkinchi toast - Administrator'ga murojaat qilish haqida
+        setTimeout(() => {
+          toast.error(
+            "Bu muammoni hal qilish uchun Administrator'ga murojaat qiling. Administrator foydalanuvchini Supabase Dashboard orqali to'liq tiklash/o'chirish kerak.",
+            {
+              duration: 10000,
+            }
+          );
+        }, 600);
+      } else {
+        toast.error(error.message || "Foydalanuvchini saqlashda xatolik yuz berdi");
+      }
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  const handleDeleteUser = (userId: string) => {
-    setUsers((prev) => prev.filter((user) => user.id !== userId))
+  const handleDeleteClick = (user: User) => {
+    setUserToDelete(user);
+    setDeleteConfirmOpen(true);
+  }
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+
+    setIsDeleting(userToDelete.id);
+    try {
+      await userUtils.deleteUser(userToDelete.id);
+      toast.success("Foydalanuvchi muvaffaqiyatli o'chirildi");
+      await loadUsers();
+    } catch (error: any) {
+      console.error("Foydalanuvchini o'chirishda xatolik:", error);
+      toast.error(error.message || "Foydalanuvchini o'chirishda xatolik yuz berdi");
+    } finally {
+      setIsDeleting(null);
+      setDeleteConfirmOpen(false);
+      setUserToDelete(null);
+    }
   }
 
   const roleStats = users.reduce(
@@ -188,7 +305,18 @@ export function UserManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => (
+                {isLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  filteredUsers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
@@ -204,20 +332,32 @@ export function UserManagement() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteUser(user.id)}
+                          onClick={() => handleDeleteClick(user)}
                           className="text-destructive hover:text-destructive"
+                          disabled={isDeleting === user.id}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {isDeleting === user.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
 
-          {filteredUsers.length === 0 && (
+          {!isLoading && filteredUsers.length === 0 && users.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground mb-2">Hali foydalanuvchilar mavjud emas</p>
+              <p className="text-xs text-muted-foreground">Yangi foydalanuvchi qo'shish uchun "Yangi foydalanuvchi" tugmasini bosing</p>
+            </div>
+          )}
+          {!isLoading && filteredUsers.length === 0 && users.length > 0 && (
             <div className="text-center py-8">
               <p className="text-muted-foreground">Qidiruv bo'yicha natija topilmadi</p>
             </div>
@@ -288,18 +428,81 @@ export function UserManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">
+                {editingUser ? "Parolni yangilash (ixtiyoriy)" : "Parol *"}
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                placeholder={editingUser ? "Agar parolni o'zgartirmoqchi bo'lsangiz kiriting" : "Parol kiriting"}
+                required={!editingUser}
+              />
+              {editingUser && (
+                <p className="text-xs text-muted-foreground">
+                  Parolni o'zgartirmasangiz bo'sh qoldiring
+                </p>
+              )}
+            </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setShowUserModal(false)}>
               Bekor qilish
             </Button>
-            <Button type="button" onClick={handleSaveUser}>
-              {editingUser ? "Saqlash" : "Qo'shish"}
+            <Button type="button" onClick={handleSaveUser} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saqlanmoqda...
+                </>
+              ) : editingUser ? (
+                "Saqlash"
+              ) : (
+                "Qo'shish"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Foydalanuvchini o'chirish</AlertDialogTitle>
+            <AlertDialogDescription>
+              {userToDelete && (
+                <>
+                  <span className="font-semibold">{userToDelete.name}</span> nomli foydalanuvchini o'chirishni tasdiqlaysizmi?
+                  <br />
+                  Bu amalni bekor qilib bo'lmaydi.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting !== null}>Bekor qilish</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting !== null}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  O'chirilmoqda...
+                </>
+              ) : (
+                "O'chirish"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

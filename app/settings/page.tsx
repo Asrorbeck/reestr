@@ -1,5 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import {
   Card,
   CardContent,
@@ -13,9 +17,41 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Settings, Bell, Shield, Database, Clock } from "lucide-react";
+import { Settings, Bell, Shield, Database, Clock, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function SettingsPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const role = user?.role as "Administrator" | "Operator" | "Viewer" | undefined;
+
+  useEffect(() => {
+    if (!loading && !hasPermission(role, "canViewSettings")) {
+      toast.error("Sizda bu sahifaga kirish ruxsati yo'q");
+      router.replace("/integrations");
+    }
+  }, [user, loading, role, router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!hasPermission(role, "canViewSettings")) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-lg font-semibold mb-2">Ruxsat yo'q</p>
+          <p className="text-muted-foreground">
+            Sizda bu sahifaga kirish ruxsati yo'q
+          </p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       <div>

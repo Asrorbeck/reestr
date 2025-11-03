@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { Integration, IntegrationTab } from "@/lib/types";
-import { mockIntegrations } from "@/lib/mock-data";
-import { localStorageUtils } from "@/lib/localStorage";
+import { supabaseUtils } from "@/lib/supabaseUtils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,9 +28,21 @@ import {
 import { cn, formatDate } from "@/lib/utils";
 
 const statusColors = {
-  Active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-  Test: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
-  Archived: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+  faol: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+  testda:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+  rejalashtirilgan:
+    "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+  muammoli: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+};
+
+const formatColors = {
+  JSON: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
+  XML: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+  CSV: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300",
+  SOAP: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300",
+  "REST API":
+    "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
 };
 
 const defaultProjectStructure = [
@@ -41,6 +52,7 @@ const defaultProjectStructure = [
 export default function IntegrationDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("passport");
   const [integration, setIntegration] = useState<Integration | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,31 +97,16 @@ export default function IntegrationDetailPage() {
   };
 
   useEffect(() => {
-    const loadIntegration = () => {
+    const loadIntegration = async () => {
       try {
-        // LocalStorage'dan ma'lumotlarni o'qish
-        const savedIntegrations = localStorageUtils.getIntegrations();
-
-        // Agar LocalStorage'da ma'lumot yo'q bo'lsa, mock ma'lumotlarni yuklash
-        if (savedIntegrations.length === 0) {
-          localStorageUtils.loadMockData(mockIntegrations);
-          const integration = mockIntegrations.find(
-            (item) => item.id === params.id
-          );
-          setIntegration(integration || null);
-        } else {
-          const integration = savedIntegrations.find(
-            (item) => item.id === params.id
-          );
-          setIntegration(integration || null);
-        }
+        // Supabase'dan ma'lumotlarni o'qish
+        const integration = await supabaseUtils.getIntegration(
+          params.id as string
+        );
+        setIntegration(integration);
       } catch (error) {
         console.error("Integratsiya yuklashda xatolik:", error);
-        // Xatolik bo'lsa, mock ma'lumotlardan qidirish
-        const integration = mockIntegrations.find(
-          (item) => item.id === params.id
-        );
-        setIntegration(integration || null);
+        setIntegration(null);
       } finally {
         setLoading(false);
       }
@@ -131,6 +128,26 @@ export default function IntegrationDetailPage() {
       setProjectStructure(defaultProjectStructure);
     }
   }, [integration]);
+
+  // URL'dan tab parametrini o'qish va tab'ni ochish
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && integration?.dynamicTabs) {
+      const tabExists = integration.dynamicTabs.some(
+        (tab) => tab.id === tabParam
+      );
+      if (tabExists) {
+        setActiveTab(tabParam);
+        // Tab o'zgarganda tepaga skroll qilish
+        setTimeout(() => {
+          window.scrollTo({
+            top: 0,
+            behavior: "smooth",
+          });
+        }, 100);
+      }
+    }
+  }, [searchParams, integration]);
 
   if (loading) {
     return (
@@ -169,42 +186,89 @@ export default function IntegrationDetailPage() {
           {/* Left Column */}
           <div className="space-y-4">
             <div>
-              <span className="font-medium">Integratsiya nomi:</span>
-              <p className="text-muted-foreground mt-1">{integration.nomi}</p>
-            </div>
-
-            <div>
-              <span className="font-medium">Vazirlik/Tashkilot:</span>
+              <span className="font-medium">
+                Axborot tizimi yoki resursning to'liq nomi (yoki interfeys):
+              </span>
               <p className="text-muted-foreground mt-1">
-                {integration.vazirlik}
+                {integration.axborotTizimiNomi || "Kiritilmagan"}
               </p>
             </div>
 
             <div>
-              <span className="font-medium">Tashkilot shakli:</span>
+              <span className="font-medium">
+                Integratsiyani amalga oshirish usuli:
+              </span>
               <p className="text-muted-foreground mt-1">
-                {integration.tashkilotShakli}
+                {integration.integratsiyaUsuli || "Kiritilmagan"}
               </p>
             </div>
 
             <div>
-              <span className="font-medium">Tashkilot turi:</span>
+              <span className="font-medium">
+                Uzatiladigan/qabul qilinadigan ma'lumot nomi:
+              </span>
               <p className="text-muted-foreground mt-1">
-                {integration.tashkilotTuri}
+                {integration.malumotNomi || "Kiritilmagan"}
               </p>
             </div>
 
             <div>
-              <span className="font-medium">Status:</span>
-              <Badge className={cn("mt-1", statusColors[integration.status])}>
-                {integration.status}
+              <span className="font-medium">
+                Integratsiya qilingan tashkilot nomi va shakli:
+              </span>
+              <p className="text-muted-foreground mt-1">
+                {integration.tashkilotNomiVaShakli || "Kiritilmagan"}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium">Normativ-huquqiy hujjat:</span>
+              <p className="text-muted-foreground mt-1">
+                {integration.normativHuquqiyHujjat || "Kiritilmagan"}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium">
+                Axborot almashinuvi bo'yicha texnologik yo'riqnoma mavjudligi:
+              </span>
+              <p className="text-muted-foreground mt-1">
+                {integration.texnologikYoriknomaMavjudligi || "Kiritilmagan"}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium block mb-2">Ma'lumot formati:</span>
+              <Badge
+                className={cn(
+                  formatColors[integration.malumotFormati] ||
+                    "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                )}
+              >
+                {integration.malumotFormati}
               </Badge>
             </div>
 
             <div>
-              <span className="font-medium">Yaratilgan sana:</span>
+              <span className="font-medium">Ma'lumot almashish sharti:</span>
               <p className="text-muted-foreground mt-1">
-                {formatDate(integration.createdAt)}
+                {integration.maqlumotAlmashishSharti || "Kiritilmagan"}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium">
+                Ma'lumot yangilanish davriyligi:
+              </span>
+              <p className="text-muted-foreground mt-1">
+                {integration.yangilanishDavriyligi || "Kiritilmagan"}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium">Ma'lumot hajmi:</span>
+              <p className="text-muted-foreground mt-1">
+                {integration.malumotHajmi || "Kiritilmagan"}
               </p>
             </div>
           </div>
@@ -212,36 +276,62 @@ export default function IntegrationDetailPage() {
           {/* Right Column */}
           <div className="space-y-4">
             <div>
-              <span className="font-medium">Axborot tizimi nomi:</span>
+              <span className="font-medium">
+                Hamkor tashkilot bilan aloqa kanali:
+              </span>
               <p className="text-muted-foreground mt-1">
-                {integration.axborotTizimiNomi}
+                {integration.aloqaKanali || "Kiritilmagan"}
               </p>
             </div>
 
             <div>
-              <span className="font-medium">Ma'lumot beruvchi tashkilot:</span>
+              <span className="font-medium">
+                So'nggi muvaffaqiyatli uzatish vaqti:
+              </span>
               <p className="text-muted-foreground mt-1">
-                {integration.qaysiTashkilotTomondan}
+                {integration.oxirgiUzatishVaqti || "Kiritilmagan"}
               </p>
             </div>
 
             <div>
-              <span className="font-medium">MSPD manzili:</span>
+              <span className="font-medium">
+                Markaziy bank tomonidan texnik aloqa shaxsi:
+              </span>
               <p className="text-muted-foreground mt-1">
-                {integration.mspdManzil}
+                {integration.markaziyBankAloqa || "Kiritilmagan"}
               </p>
             </div>
 
             <div>
-              <span className="font-medium">Oylik sorovlar soni:</span>
+              <span className="font-medium">
+                Hamkor tashkilot tomonidan texnik aloqa shaxsi:
+              </span>
               <p className="text-muted-foreground mt-1">
-                {integration.sorovlarOrtachaOylik.toLocaleString()}
+                {integration.hamkorAloqa || "Kiritilmagan"}
               </p>
             </div>
 
             <div>
-              <span className="font-medium">Muddat:</span>
-              <p className="text-muted-foreground mt-1">{integration.muddat}</p>
+              <span className="font-medium block mb-2">
+                Integratsiya holati / statusi:
+              </span>
+              <Badge className={cn(statusColors[integration.status])}>
+                {integration.status}
+              </Badge>
+            </div>
+
+            <div>
+              <span className="font-medium">Izoh / qo'shimcha ma'lumot:</span>
+              <p className="text-muted-foreground mt-1">
+                {integration.izoh || "Kiritilmagan"}
+              </p>
+            </div>
+
+            <div>
+              <span className="font-medium">Yaratilgan sana:</span>
+              <p className="text-muted-foreground mt-1">
+                {formatDate(integration.createdAt)}
+              </p>
             </div>
 
             <div>
@@ -254,80 +344,15 @@ export default function IntegrationDetailPage() {
         </div>
       </div>
 
-      {/* Asosiy vazifasi - Separate row */}
+      {/* Asosiy maqsad - Separate row */}
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold">Asosiy vazifasi</h2>
+        <h2 className="text-2xl font-bold">Integratsiyadan asosiy maqsad</h2>
         <div className="space-y-4">
           <div>
-            <span className="font-medium">
-              Integratsiyaning asosiy vazifasi:
-            </span>
+            <span className="font-medium">Integratsiyadan asosiy maqsad:</span>
             <p className="text-muted-foreground mt-2 leading-relaxed">
-              {integration.asosiyMaqsad || "Asosiy vazifa kiritilmagan"}
+              {integration.asosiyMaqsad || "Asosiy maqsad kiritilmagan"}
             </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Ma'lumot almashish sharti - Separate row */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">Ma'lumot almashish sharti</h2>
-        <div className="space-y-4">
-          <div>
-            <span className="font-medium">Ma'lumot almashish shartlari:</span>
-            <p className="text-muted-foreground mt-2 leading-relaxed">
-              {integration.maqlumotAlmashishSharti ||
-                "Ma'lumot almashish sharti kiritilmagan"}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* II. Texnik xususiyatlar */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">II. Texnik xususiyatlar</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column */}
-          <div className="space-y-4">
-            <div>
-              <span className="font-medium">Texnologiya:</span>
-              <p className="text-muted-foreground mt-1">
-                {integration.texnologiya}
-              </p>
-            </div>
-
-            <div>
-              <span className="font-medium">
-                Texnologik yo'riqnoma mavjudligi:
-              </span>
-              <p className="text-muted-foreground mt-1">
-                {integration.texnologikYoriknomaMavjudligi
-                  ? "Mavjud"
-                  : "Mavjud emas"}
-              </p>
-            </div>
-
-            <div>
-              <span className="font-medium">Huquqiy asos:</span>
-              <p className="text-muted-foreground mt-1">
-                {integration.huquqiyAsos}
-              </p>
-            </div>
-
-            <div>
-              <span className="font-medium">Normativ-huquqiy hujjat:</span>
-              <p className="text-muted-foreground mt-1">
-                {integration.normativHuquqiyHujjat}
-              </p>
-            </div>
-          </div>
-
-          {/* Right Column */}
-          <div className="space-y-4">
-            <div>
-              <span className="font-medium">Sana:</span>
-              <p className="text-muted-foreground mt-1">{integration.sana}</p>
-            </div>
           </div>
         </div>
       </div>
@@ -489,17 +514,18 @@ export default function IntegrationDetailPage() {
                 Orqaga qaytish
               </Button>
               <Badge
-                className={cn("text-sm", statusColors[integration.status])}
+                className={cn("text-sm mt-1", statusColors[integration.status])}
               >
                 {integration.status}
               </Badge>
             </div>
             <div>
               <h1 className="text-3xl font-bold tracking-tight">
-                {integration.nomi}
+                {integration.axborotTizimiNomi || "Integratsiya"}
               </h1>
               <p className="text-muted-foreground">
-                Markaziy Bank va vazirliklar o'rtasidagi integratsiya
+                {integration.tashkilotNomiVaShakli ||
+                  "Tashkilot nomi va shakli kiritilmagan"}
               </p>
             </div>
           </div>

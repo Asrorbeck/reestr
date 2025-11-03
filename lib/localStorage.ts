@@ -34,6 +34,7 @@ export const localStorageUtils = {
     > & {
       dynamicTabs?: Array<{
         name: string;
+        columnKey: string;
         title: string;
         description: string;
         files: Array<{

@@ -11,19 +11,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   X,
   Filter,
   Search,
-  MapPin,
   ChevronDown,
   ChevronUp,
   Settings,
   Check,
-  ChevronDown as ChevronDownIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -33,69 +30,66 @@ import {
 } from "@/components/ui/collapsible";
 
 interface AdvancedFilterProps {
-  onFiltersChange: (filters: FilterState) => void;
+  onFiltersChange: (filters: HeaderFilters) => void;
   visibleColumns?: string[];
   onColumnsChange?: (columns: string[]) => void;
 }
 
-interface FilterState {
-  // Asosiy qidiruv
-  nomi: string;
-  vazirlik: string;
-  tashkilotShakli: string;
-  normativHuquqiyHujjat: string;
-
-  // Texnologiya va texnik xususiyatlar
-  texnologikYoriknomaMavjudligi: string;
-  texnologiya: string;
-
-  // Qo'shimcha ma'lumotlar
-  qaysiTashkilotTomondan: string;
-  mspdManzil: string;
+interface HeaderFilters {
   axborotTizimiNomi: string;
+  integratsiyaUsuli: string;
+  malumotNomi: string;
+  tashkilotNomiVaShakli: string;
+  asosiyMaqsad: string;
+  normativHuquqiyHujjat: string;
+  texnologikYoriknomaMavjudligi: string;
+  malumotFormati: string;
+  maqlumotAlmashishSharti: string;
+  yangilanishDavriyligi: string;
+  malumotHajmi: string;
+  aloqaKanali: string;
+  oxirgiUzatishVaqti: string;
+  markaziyBankAloqa: string;
+  hamkorAloqa: string;
   status: string;
+  izoh: string;
 }
 
-const tashkilotShakliOptions = [
-  { value: "all", label: "Barcha tashkilotlar" },
-  { value: "Davlat tashkiloti", label: "Davlat tashkiloti" },
-  { value: "Xususiy tashkilot", label: "Xususiy tashkilot" },
-];
-
-const texnologiyaOptions = [
-  { value: "all", label: "Barcha texnologiyalar" },
-  { value: "REST", label: "REST API" },
+const malumotFormatiOptions = [
+  { value: "all", label: "Barcha formatlar" },
+  { value: "JSON", label: "JSON" },
+  { value: "XML", label: "XML" },
+  { value: "CSV", label: "CSV" },
   { value: "SOAP", label: "SOAP" },
-  { value: "MQ", label: "Message Queue" },
-  { value: "File exchange", label: "Fayl almashinuvi" },
-];
-
-const texnologikYoriknomaOptions = [
-  { value: "all", label: "Barcha" },
-  { value: "true", label: "Mavjud" },
-  { value: "false", label: "Yo'q" },
+  { value: "REST API", label: "REST API" },
 ];
 
 const statusOptions = [
   { value: "all", label: "Barcha statuslar" },
-  { value: "Active", label: "Faol" },
-  { value: "Test", label: "Test" },
-  { value: "Archived", label: "Arxivlangan" },
+  { value: "faol", label: "Faol" },
+  { value: "testda", label: "Testda" },
+  { value: "rejalashtirilgan", label: "Rejalashtirilgan" },
+  { value: "muammoli", label: "Muammoli" },
 ];
 
 const columnOptions = [
-  { key: "nomi", label: "Nomi" },
-  { key: "tashkilotShakli", label: "Tashkilot va shakli" },
-  { key: "asosiyMaqsad", label: "Asosiy maqsad" },
+  { key: "axborotTizimiNomi", label: "Axborot tizimi yoki resursning to'liq nomi" },
+  { key: "integratsiyaUsuli", label: "Integratsiyani amalga oshirish usuli" },
+  { key: "malumotNomi", label: "Uzatiladigan/qabul qilinadigan ma'lumot nomi" },
+  { key: "tashkilotNomiVaShakli", label: "Integratsiya qilingan tashkilot nomi va shakli" },
+  { key: "asosiyMaqsad", label: "Integratsiyadan asosiy maqsad" },
   { key: "normativHuquqiyHujjat", label: "Normativ-huquqiy hujjat" },
-  { key: "texnologikYoriknomaMavjudligi", label: "Texnologik yo'riqnoma" },
-  { key: "texnologiya", label: "Texnologiya" },
+  { key: "texnologikYoriknomaMavjudligi", label: "Texnologik yo'riqnoma mavjudligi" },
+  { key: "malumotFormati", label: "Ma'lumot formati" },
   { key: "maqlumotAlmashishSharti", label: "Ma'lumot almashish sharti" },
-  { key: "sorovlarOrtachaOylik", label: "Oylik sorovlar" },
-  { key: "qaysiTashkilotTomondan", label: "Ma'lumot beruvchi" },
-  { key: "mspdManzil", label: "MSPD manzili" },
-  { key: "axborotTizimiNomi", label: "Axborot tizimi" },
-  { key: "status", label: "Status" },
+  { key: "yangilanishDavriyligi", label: "Ma'lumot yangilanish davriyligi" },
+  { key: "malumotHajmi", label: "Ma'lumot hajmi" },
+  { key: "aloqaKanali", label: "Hamkor tashkilot bilan aloqa kanali" },
+  { key: "oxirgiUzatishVaqti", label: "So'nggi muvaffaqiyatli uzatish vaqti" },
+  { key: "markaziyBankAloqa", label: "Markaziy bank tomonidan texnik aloqa shaxsi" },
+  { key: "hamkorAloqa", label: "Hamkor tashkilot tomonidan texnik aloqa shaxsi" },
+  { key: "status", label: "Integratsiya holati / statusi" },
+  { key: "izoh", label: "Izoh / qo'shimcha ma'lumot" },
 ];
 
 export function AdvancedFilter({
@@ -106,17 +100,24 @@ export function AdvancedFilter({
   const [isOpen, setIsOpen] = useState(false);
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [filters, setFilters] = useState<FilterState>({
-    nomi: "",
-    vazirlik: "",
-    tashkilotShakli: "all",
-    normativHuquqiyHujjat: "",
-    texnologikYoriknomaMavjudligi: "all",
-    texnologiya: "all",
-    qaysiTashkilotTomondan: "",
-    mspdManzil: "",
+  const [filters, setFilters] = useState<HeaderFilters>({
     axborotTizimiNomi: "",
+    integratsiyaUsuli: "",
+    malumotNomi: "",
+    tashkilotNomiVaShakli: "",
+    asosiyMaqsad: "",
+    normativHuquqiyHujjat: "",
+    texnologikYoriknomaMavjudligi: "",
+    malumotFormati: "all",
+    maqlumotAlmashishSharti: "",
+    yangilanishDavriyligi: "",
+    malumotHajmi: "",
+    aloqaKanali: "",
+    oxirgiUzatishVaqti: "",
+    markaziyBankAloqa: "",
+    hamkorAloqa: "",
     status: "all",
+    izoh: "",
   });
 
   // Close dropdown when clicking outside
@@ -136,7 +137,7 @@ export function AdvancedFilter({
     };
   }, []);
 
-  const handleFilterChange = (key: keyof FilterState, value: any) => {
+  const handleFilterChange = (key: keyof HeaderFilters, value: any) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
     onFiltersChange(newFilters);
@@ -163,17 +164,24 @@ export function AdvancedFilter({
   };
 
   const clearAllFilters = () => {
-    const clearedFilters: FilterState = {
-      nomi: "",
-      vazirlik: "",
-      tashkilotShakli: "all",
-      normativHuquqiyHujjat: "",
-      texnologikYoriknomaMavjudligi: "all",
-      texnologiya: "all",
-      qaysiTashkilotTomondan: "",
-      mspdManzil: "",
+    const clearedFilters: HeaderFilters = {
       axborotTizimiNomi: "",
+      integratsiyaUsuli: "",
+      malumotNomi: "",
+      tashkilotNomiVaShakli: "",
+      asosiyMaqsad: "",
+      normativHuquqiyHujjat: "",
+      texnologikYoriknomaMavjudligi: "",
+      malumotFormati: "all",
+      maqlumotAlmashishSharti: "",
+      yangilanishDavriyligi: "",
+      malumotHajmi: "",
+      aloqaKanali: "",
+      oxirgiUzatishVaqti: "",
+      markaziyBankAloqa: "",
+      hamkorAloqa: "",
       status: "all",
+      izoh: "",
     };
     setFilters(clearedFilters);
     onFiltersChange(clearedFilters);
@@ -181,16 +189,23 @@ export function AdvancedFilter({
 
   const getActiveFiltersCount = () => {
     let count = 0;
-    if (filters.nomi) count++;
-    if (filters.vazirlik) count++;
-    if (filters.tashkilotShakli !== "all") count++;
-    if (filters.normativHuquqiyHujjat) count++;
-    if (filters.texnologikYoriknomaMavjudligi !== "all") count++;
-    if (filters.texnologiya !== "all") count++;
-    if (filters.qaysiTashkilotTomondan) count++;
-    if (filters.mspdManzil) count++;
     if (filters.axborotTizimiNomi) count++;
+    if (filters.integratsiyaUsuli) count++;
+    if (filters.malumotNomi) count++;
+    if (filters.tashkilotNomiVaShakli) count++;
+    if (filters.asosiyMaqsad) count++;
+    if (filters.normativHuquqiyHujjat) count++;
+    if (filters.texnologikYoriknomaMavjudligi) count++;
+    if (filters.malumotFormati !== "all") count++;
+    if (filters.maqlumotAlmashishSharti) count++;
+    if (filters.yangilanishDavriyligi) count++;
+    if (filters.malumotHajmi) count++;
+    if (filters.aloqaKanali) count++;
+    if (filters.oxirgiUzatishVaqti) count++;
+    if (filters.markaziyBankAloqa) count++;
+    if (filters.hamkorAloqa) count++;
     if (filters.status !== "all") count++;
+    if (filters.izoh) count++;
     return count;
   };
 
@@ -251,22 +266,22 @@ export function AdvancedFilter({
           <CollapsibleContent className="px-6 pb-6 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
             <div className="space-y-6 mt-4">
               {/* Select fields - First row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Tashkilot shakli
+                    Ma'lumot formati
                   </Label>
                   <Select
-                    value={filters.tashkilotShakli}
+                    value={filters.malumotFormati}
                     onValueChange={(value) =>
-                      handleFilterChange("tashkilotShakli", value)
+                      handleFilterChange("malumotFormati", value)
                     }
                   >
                     <SelectTrigger className="w-full h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20">
-                      <SelectValue placeholder="Tashkilot shaklini tanlang" />
+                      <SelectValue placeholder="Ma'lumot formatini tanlang" />
                     </SelectTrigger>
                     <SelectContent>
-                      {tashkilotShakliOptions.map((option) => (
+                      {malumotFormatiOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>
@@ -277,53 +292,7 @@ export function AdvancedFilter({
 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Texnologiya
-                  </Label>
-                  <Select
-                    value={filters.texnologiya}
-                    onValueChange={(value) =>
-                      handleFilterChange("texnologiya", value)
-                    }
-                  >
-                    <SelectTrigger className="w-full h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20">
-                      <SelectValue placeholder="Texnologiyani tanlang" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {texnologiyaOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Texnologik yo'riqnoma
-                  </Label>
-                  <Select
-                    value={filters.texnologikYoriknomaMavjudligi}
-                    onValueChange={(value) =>
-                      handleFilterChange("texnologikYoriknomaMavjudligi", value)
-                    }
-                  >
-                    <SelectTrigger className="w-full h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20">
-                      <SelectValue placeholder="Yo'riqnoma holati" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {texnologikYoriknomaOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Status
+                    Integratsiya holati / statusi
                   </Label>
                   <Select
                     value={filters.status}
@@ -346,18 +315,18 @@ export function AdvancedFilter({
               </div>
 
               {/* Asosiy qidiruv paneli */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Integratsiya nomi
+                    Axborot tizimi yoki resursning to'liq nomi
                   </Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Integratsiya nomini kiriting..."
-                      value={filters.nomi}
+                      placeholder="Axborot tizimi nomini kiriting..."
+                      value={filters.axborotTizimiNomi}
                       onChange={(e) =>
-                        handleFilterChange("nomi", e.target.value)
+                        handleFilterChange("axborotTizimiNomi", e.target.value)
                       }
                       className="pl-10 h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20"
                     />
@@ -366,21 +335,52 @@ export function AdvancedFilter({
 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Vazirlik
+                    Integratsiyani amalga oshirish usuli
                   </Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Vazirlikni qidirish..."
-                      value={filters.vazirlik}
-                      onChange={(e) =>
-                        handleFilterChange("vazirlik", e.target.value)
-                      }
-                      className="pl-10 h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20"
-                    />
-                  </div>
+                  <Input
+                    placeholder="Integratsiya usulini kiriting..."
+                    value={filters.integratsiyaUsuli}
+                    onChange={(e) =>
+                      handleFilterChange("integratsiyaUsuli", e.target.value)
+                    }
+                    className="h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20"
+                  />
+                </div>
+              </div>
+
+              {/* Qo'shimcha ma'lumotlar */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Uzatiladigan/qabul qilinadigan ma'lumot nomi
+                  </Label>
+                  <Input
+                    placeholder="Ma'lumot nomini kiriting..."
+                    value={filters.malumotNomi}
+                    onChange={(e) =>
+                      handleFilterChange("malumotNomi", e.target.value)
+                    }
+                    className="h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20"
+                  />
                 </div>
 
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Integratsiya qilingan tashkilot nomi va shakli
+                  </Label>
+                  <Input
+                    placeholder="Tashkilot nomi va shaklini kiriting..."
+                    value={filters.tashkilotNomiVaShakli}
+                    onChange={(e) =>
+                      handleFilterChange("tashkilotNomiVaShakli", e.target.value)
+                    }
+                    className="h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20"
+                  />
+                </div>
+              </div>
+
+              {/* Qo'shimcha filterlar */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Normativ-huquqiy hujjat
@@ -397,50 +397,19 @@ export function AdvancedFilter({
                     className="h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20"
                   />
                 </div>
-              </div>
 
-              {/* Qo'shimcha ma'lumotlar */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Ma'lumot beruvchi
+                    Texnologik yo'riqnoma mavjudligi
                   </Label>
                   <Input
-                    placeholder="Tashkilot nomini kiriting..."
-                    value={filters.qaysiTashkilotTomondan}
+                    placeholder="Texnologik yo'riqnoma holati..."
+                    value={filters.texnologikYoriknomaMavjudligi}
                     onChange={(e) =>
                       handleFilterChange(
-                        "qaysiTashkilotTomondan",
+                        "texnologikYoriknomaMavjudligi",
                         e.target.value
                       )
-                    }
-                    className="h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    MSPD manzili
-                  </Label>
-                  <Input
-                    placeholder="MSPD manzilini kiriting..."
-                    value={filters.mspdManzil}
-                    onChange={(e) =>
-                      handleFilterChange("mspdManzil", e.target.value)
-                    }
-                    className="h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Axborot tizimi
-                  </Label>
-                  <Input
-                    placeholder="Tizim nomini kiriting..."
-                    value={filters.axborotTizimiNomi}
-                    onChange={(e) =>
-                      handleFilterChange("axborotTizimiNomi", e.target.value)
                     }
                     className="h-11 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20"
                   />

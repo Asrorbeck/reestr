@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Integration } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,16 +38,70 @@ export function IntegrationForm({
   onSave,
 }: IntegrationFormProps) {
   const [formData, setFormData] = useState({
-    nomi: integration?.nomi || "",
-    vazirlik: integration?.vazirlik || "",
-    huquqiyAsos: integration?.huquqiyAsos || "",
-    texnologiya: integration?.texnologiya || "REST",
-    yonalish: integration?.yonalish || "One-way",
-    status: integration?.status || "Test",
-    sana: integration?.sana || new Date().toISOString().split("T")[0],
-    muddat: integration?.muddat || "",
-    tavsif: integration?.tavsif || "",
+    axborotTizimiNomi: "",
+    integratsiyaUsuli: "",
+    malumotNomi: "",
+    tashkilotNomiVaShakli: "",
+    asosiyMaqsad: "",
+    normativHuquqiyHujjat: "",
+    texnologikYoriknomaMavjudligi: "",
+    malumotFormati: "JSON" as "JSON" | "XML" | "CSV" | "SOAP" | "REST API",
+    maqlumotAlmashishSharti: "",
+    yangilanishDavriyligi: "",
+    malumotHajmi: "",
+    aloqaKanali: "",
+    oxirgiUzatishVaqti: "",
+    markaziyBankAloqa: "",
+    hamkorAloqa: "",
+    status: "faol" as "faol" | "testda" | "rejalashtirilgan" | "muammoli",
+    izoh: "",
   });
+
+  useEffect(() => {
+    if (integration) {
+      setFormData({
+        axborotTizimiNomi: integration.axborotTizimiNomi || "",
+        integratsiyaUsuli: integration.integratsiyaUsuli || "",
+        malumotNomi: integration.malumotNomi || "",
+        tashkilotNomiVaShakli: integration.tashkilotNomiVaShakli || "",
+        asosiyMaqsad: integration.asosiyMaqsad || "",
+        normativHuquqiyHujjat: integration.normativHuquqiyHujjat || "",
+        texnologikYoriknomaMavjudligi:
+          integration.texnologikYoriknomaMavjudligi || "",
+        malumotFormati: integration.malumotFormati || "JSON",
+        maqlumotAlmashishSharti: integration.maqlumotAlmashishSharti || "",
+        yangilanishDavriyligi: integration.yangilanishDavriyligi || "",
+        malumotHajmi: integration.malumotHajmi || "",
+        aloqaKanali: integration.aloqaKanali || "",
+        oxirgiUzatishVaqti: integration.oxirgiUzatishVaqti || "",
+        markaziyBankAloqa: integration.markaziyBankAloqa || "",
+        hamkorAloqa: integration.hamkorAloqa || "",
+        status: integration.status || "faol",
+        izoh: integration.izoh || "",
+      });
+    } else {
+      // Reset form when opening for new integration
+      setFormData({
+        axborotTizimiNomi: "",
+        integratsiyaUsuli: "",
+        malumotNomi: "",
+        tashkilotNomiVaShakli: "",
+        asosiyMaqsad: "",
+        normativHuquqiyHujjat: "",
+        texnologikYoriknomaMavjudligi: "",
+        malumotFormati: "JSON",
+        maqlumotAlmashishSharti: "",
+        yangilanishDavriyligi: "",
+        malumotHajmi: "",
+        aloqaKanali: "",
+        oxirgiUzatishVaqti: "",
+        markaziyBankAloqa: "",
+        hamkorAloqa: "",
+        status: "faol",
+        izoh: "",
+      });
+    }
+  }, [integration, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +115,7 @@ export function IntegrationForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {integration
@@ -76,123 +130,237 @@ export function IntegrationForm({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="nomi">Integratsiya nomi *</Label>
+              <Label htmlFor="axborotTizimiNomi">
+                Axborot tizimi yoki resursning to'liq nomi (yoki interfeys) *
+              </Label>
               <Input
-                id="nomi"
-                value={formData.nomi}
-                onChange={(e) => handleChange("nomi", e.target.value)}
-                placeholder="Integratsiya nomini kiriting"
+                id="axborotTizimiNomi"
+                value={formData.axborotTizimiNomi}
+                onChange={(e) => handleChange("axborotTizimiNomi", e.target.value)}
+                placeholder="Axborot tizimi nomini kiriting"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vazirlik">Vazirlik/Tashkilot *</Label>
+              <Label htmlFor="integratsiyaUsuli">
+                Integratsiyani amalga oshirish usuli *
+              </Label>
               <Input
-                id="vazirlik"
-                value={formData.vazirlik}
-                onChange={(e) => handleChange("vazirlik", e.target.value)}
-                placeholder="Vazirlik nomini kiriting"
+                id="integratsiyaUsuli"
+                value={formData.integratsiyaUsuli}
+                onChange={(e) => handleChange("integratsiyaUsuli", e.target.value)}
+                placeholder="Idoralararo integrallashuv platformasi orqali yoki to'g'ridan to'g'ri"
                 required
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="huquqiyAsos">Huquqiy asos *</Label>
+            <Label htmlFor="malumotNomi">
+              Uzatiladigan/qabul qilinadigan ma'lumot nomi *
+            </Label>
             <Input
-              id="huquqiyAsos"
-              value={formData.huquqiyAsos}
-              onChange={(e) => handleChange("huquqiyAsos", e.target.value)}
-              placeholder="Huquqiy asosni kiriting"
+              id="malumotNomi"
+              value={formData.malumotNomi}
+              onChange={(e) => handleChange("malumotNomi", e.target.value)}
+              placeholder="Ma'lumot nomini kiriting"
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Texnologiya *</Label>
-              <Select
-                value={formData.texnologiya}
-                onValueChange={(value) => handleChange("texnologiya", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="REST">REST</SelectItem>
-                  <SelectItem value="SOAP">SOAP</SelectItem>
-                  <SelectItem value="MQ">MQ</SelectItem>
-                  <SelectItem value="File exchange">File exchange</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="tashkilotNomiVaShakli">
+              Integratsiya qilingan tashkilot nomi va shakli *
+            </Label>
+            <Input
+              id="tashkilotNomiVaShakli"
+              value={formData.tashkilotNomiVaShakli}
+              onChange={(e) => handleChange("tashkilotNomiVaShakli", e.target.value)}
+              placeholder="Tashkilot nomi va shakli (davlat / xususiy)"
+              required
+            />
+          </div>
 
-            <div className="space-y-2">
-              <Label>Yo'nalish *</Label>
-              <Select
-                value={formData.yonalish}
-                onValueChange={(value) => handleChange("yonalish", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="One-way">Bir tomonlama</SelectItem>
-                  <SelectItem value="Two-way">Ikki tomonlama</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="asosiyMaqsad">
+              Integratsiyadan asosiy maqsad *
+            </Label>
+            <Textarea
+              id="asosiyMaqsad"
+              value={formData.asosiyMaqsad}
+              onChange={(e) => handleChange("asosiyMaqsad", e.target.value)}
+              placeholder="Integratsiyadan asosiy maqsadni kiriting"
+              rows={3}
+              required
+            />
+          </div>
 
-            <div className="space-y-2">
-              <Label>Status *</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => handleChange("status", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Test">Test</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Archived">Archived</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="normativHuquqiyHujjat">
+              Normativ-huquqiy hujjat *
+            </Label>
+            <Input
+              id="normativHuquqiyHujjat"
+              value={formData.normativHuquqiyHujjat}
+              onChange={(e) => handleChange("normativHuquqiyHujjat", e.target.value)}
+              placeholder="Normativ-huquqiy hujjatni kiriting"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="texnologikYoriknomaMavjudligi">
+              Axborot almashinuvi bo'yicha texnologik yo'riqnoma mavjudligi
+            </Label>
+            <Input
+              id="texnologikYoriknomaMavjudligi"
+              value={formData.texnologikYoriknomaMavjudligi}
+              onChange={(e) =>
+                handleChange("texnologikYoriknomaMavjudligi", e.target.value)
+              }
+              placeholder="Texnologik yo'riqnoma mavjudligi"
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="sana">Boshlangan sana *</Label>
-              <Input
-                id="sana"
-                type="date"
-                value={formData.sana}
-                onChange={(e) => handleChange("sana", e.target.value)}
-                required
-              />
+              <Label htmlFor="malumotFormati">Ma'lumot formati *</Label>
+              <Select
+                value={formData.malumotFormati}
+                onValueChange={(value) =>
+                  handleChange(
+                    "malumotFormati",
+                    value as "JSON" | "XML" | "CSV" | "SOAP" | "REST API"
+                  )
+                }
+              >
+                <SelectTrigger id="malumotFormati">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="JSON">JSON</SelectItem>
+                  <SelectItem value="XML">XML</SelectItem>
+                  <SelectItem value="CSV">CSV</SelectItem>
+                  <SelectItem value="SOAP">SOAP</SelectItem>
+                  <SelectItem value="REST API">REST API</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="muddat">Tugash sanasi *</Label>
-              <Input
-                id="muddat"
-                type="date"
-                value={formData.muddat}
-                onChange={(e) => handleChange("muddat", e.target.value)}
-                required
-              />
+              <Label htmlFor="status">Integratsiya holati / statusi *</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) =>
+                  handleChange(
+                    "status",
+                    value as "faol" | "testda" | "rejalashtirilgan" | "muammoli"
+                  )
+                }
+              >
+                <SelectTrigger id="status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="faol">Faol</SelectItem>
+                  <SelectItem value="testda">Testda</SelectItem>
+                  <SelectItem value="rejalashtirilgan">Rejalashtirilgan</SelectItem>
+                  <SelectItem value="muammoli">Muammoli</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tavsif">Tavsif</Label>
+            <Label htmlFor="maqlumotAlmashishSharti">
+              Ma'lumot almashish sharti
+            </Label>
+            <Input
+              id="maqlumotAlmashishSharti"
+              value={formData.maqlumotAlmashishSharti}
+              onChange={(e) => handleChange("maqlumotAlmashishSharti", e.target.value)}
+              placeholder="So'rov-javob, push, fayl almashinuvi"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="yangilanishDavriyligi">
+              Ma'lumot yangilanish davriyligi
+            </Label>
+            <Input
+              id="yangilanishDavriyligi"
+              value={formData.yangilanishDavriyligi}
+              onChange={(e) => handleChange("yangilanishDavriyligi", e.target.value)}
+              placeholder="Real vaqt, kunlik, haftalik, oylik va hokazo"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="malumotHajmi">Ma'lumot hajmi</Label>
+            <Input
+              id="malumotHajmi"
+              value={formData.malumotHajmi}
+              onChange={(e) => handleChange("malumotHajmi", e.target.value)}
+              placeholder="Kunlik / oylik MB yoki GB"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="aloqaKanali">
+              Hamkor tashkilot bilan aloqa kanali
+            </Label>
+            <Input
+              id="aloqaKanali"
+              value={formData.aloqaKanali}
+              onChange={(e) => handleChange("aloqaKanali", e.target.value)}
+              placeholder="API, VPN, server va hokazo"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="oxirgiUzatishVaqti">
+              So'nggi muvaffaqiyatli uzatish vaqti
+            </Label>
+            <Input
+              id="oxirgiUzatishVaqti"
+              value={formData.oxirgiUzatishVaqti}
+              onChange={(e) => handleChange("oxirgiUzatishVaqti", e.target.value)}
+              placeholder="Tizimdan online olib beriladi"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="markaziyBankAloqa">
+              Markaziy bank tomonidan texnik aloqa shaxsi
+            </Label>
+            <Input
+              id="markaziyBankAloqa"
+              value={formData.markaziyBankAloqa}
+              onChange={(e) => handleChange("markaziyBankAloqa", e.target.value)}
+              placeholder="F.I.Sh, telefon, e-mail"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="hamkorAloqa">
+              Hamkor tashkilot tomonidan texnik aloqa shaxsi
+            </Label>
+            <Input
+              id="hamkorAloqa"
+              value={formData.hamkorAloqa}
+              onChange={(e) => handleChange("hamkorAloqa", e.target.value)}
+              placeholder="F.I.Sh, telefon, e-mail"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="izoh">Izoh / qo'shimcha ma'lumot</Label>
             <Textarea
-              id="tavsif"
-              value={formData.tavsif}
-              onChange={(e) => handleChange("tavsif", e.target.value)}
-              placeholder="Integratsiya haqida qo'shimcha ma'lumot"
+              id="izoh"
+              value={formData.izoh}
+              onChange={(e) => handleChange("izoh", e.target.value)}
+              placeholder="Qo'shimcha ma'lumot"
               rows={3}
             />
           </div>

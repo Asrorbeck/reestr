@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import { getRolePermissions } from "@/lib/permissions";
 import {
   Database,
   FileText,
@@ -14,32 +16,42 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const navigation = [
+const allNavigation = [
   {
     name: "Integratsiyalar",
     href: "/integrations",
     icon: Database,
+    permission: "canViewIntegrations" as const,
   },
   {
     name: "Audit jurnali",
     href: "/audit",
     icon: FileText,
+    permission: "canViewAudit" as const,
   },
   {
     name: "Foydalanuvchilar",
     href: "/users",
     icon: Users,
+    permission: "canViewUsers" as const,
   },
   {
     name: "Sozlamalar",
     href: "/settings",
     icon: Settings,
+    permission: "canViewSettings" as const,
   },
 ];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const { user } = useAuth();
+  const role = user?.role as "Administrator" | "Operator" | "Viewer" | undefined;
+  const permissions = getRolePermissions(role);
+
+  // Faqat ruxsatga ega bo'lgan menyularni ko'rsatish
+  const navigation = allNavigation.filter((item) => permissions[item.permission]);
 
   return (
     <div

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import toast from "react-hot-toast";
@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/dialog";
 import { ArrowLeft, Upload, X, Plus, Loader2 } from "lucide-react";
 import { supabaseUtils } from "@/lib/supabaseUtils";
+import { supabase } from "@/lib/supabase";
+import type { Integration, IntegrationTab } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,23 +49,24 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export default function NewIntegrationPage() {
+export default function EditIntegrationPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const params = useParams();
+  const { user, loading: authLoading } = useAuth();
   const role = user?.role as "Administrator" | "Operator" | "Viewer" | undefined;
 
   useEffect(() => {
-    if (!loading && !hasPermission(role, "canCreateIntegrations")) {
-      toast.error("Sizda yangi integratsiya qo'shish ruxsati yo'q");
+    if (!authLoading && !hasPermission(role, "canEditIntegrations")) {
+      toast.error("Sizda integratsiyalarni tahrirlash ruxsati yo'q");
       router.replace("/integrations");
     }
-  }, [user, loading, role, router]);
-
+  }, [user, authLoading, role, router]);
   const [activeTab, setActiveTab] = useState("passport");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTabName, setNewTabName] = useState("");
   const [selectedColumnKey, setSelectedColumnKey] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [deleteTabConfirmOpen, setDeleteTabConfirmOpen] = useState(false);
   const [deleteFileConfirmOpen, setDeleteFileConfirmOpen] = useState(false);
   const [tabToDelete, setTabToDelete] = useState<string | null>(null);
@@ -81,6 +84,10 @@ export default function NewIntegrationPage() {
       files: Array<{
         id: string;
         file: File | null;
+        url?: string;
+        name?: string;
+        size?: number;
+        type?: string;
       }>;
     }>
   >([]);
@@ -105,15 +112,76 @@ export default function NewIntegrationPage() {
     izoh: "",
   });
 
+  // Load integration data
+  useEffect(() => {
+    const loadIntegration = async () => {
+      try {
+        setIsLoading(true);
+        const integration = await supabaseUtils.getIntegration(
+          params.id as string
+        );
+        if (integration) {
+          setFormData({
+            axborotTizimiNomi: integration.axborotTizimiNomi || "",
+            integratsiyaUsuli: integration.integratsiyaUsuli || "",
+            malumotNomi: integration.malumotNomi || "",
+            tashkilotNomiVaShakli: integration.tashkilotNomiVaShakli || "",
+            asosiyMaqsad: integration.asosiyMaqsad || "",
+            normativHuquqiyHujjat: integration.normativHuquqiyHujjat || "",
+            texnologikYoriknomaMavjudligi:
+              integration.texnologikYoriknomaMavjudligi || "",
+            malumotFormati: integration.malumotFormati || "JSON",
+            maqlumotAlmashishSharti: integration.maqlumotAlmashishSharti || "",
+            yangilanishDavriyligi: integration.yangilanishDavriyligi || "",
+            malumotHajmi: integration.malumotHajmi || "",
+            aloqaKanali: integration.aloqaKanali || "",
+            oxirgiUzatishVaqti: integration.oxirgiUzatishVaqti || "",
+            markaziyBankAloqa: integration.markaziyBankAloqa || "",
+            hamkorAloqa: integration.hamkorAloqa || "",
+            status: integration.status || "faol",
+            izoh: integration.izoh || "",
+          });
+
+          // Load dynamic tabs
+          if (integration.dynamicTabs && integration.dynamicTabs.length > 0) {
+            setDynamicTabs(
+              integration.dynamicTabs.map((tab) => ({
+                id: tab.id,
+                name: tab.name,
+                columnKey: tab.columnKey,
+                title: tab.title || "",
+                description: tab.description || "",
+                files: tab.files.map((file) => ({
+                  id: file.id,
+                  file: null,
+                  url: file.url,
+                  name: file.name,
+                  size: file.size,
+                  type: file.type,
+                })),
+              }))
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Integratsiyani yuklashda xatolik:", error);
+        toast.error("Integratsiyani yuklashda xatolik yuz berdi!");
+        router.push("/integrations");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (params.id) {
+      loadIntegration();
+    }
+  }, [params.id, router]);
+
   const handleInputChange = (
     field: string,
     value: string | number | boolean
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleFileUpload = (field: string, file: File | null): void => {
-    setFormData((prev) => ({ ...prev, [field]: file }));
   };
 
   const handleDynamicTabFieldChange = (
@@ -169,8 +237,30 @@ export default function NewIntegrationPage() {
     setDeleteFileConfirmOpen(true);
   };
 
-  const confirmDeleteFile = () => {
+  const confirmDeleteFile = async () => {
     if (!fileToDelete) return;
+    
+    // Agar file Supabase'da mavjud bo'lsa (id mavjud va temp id emas), backend'dan ham o'chirish
+    const tab = dynamicTabs.find((t) => t.id === fileToDelete.tabId);
+    const file = tab?.files.find((f) => f.id === fileToDelete.fileId);
+    
+    if (file?.id && !file.id.startsWith("file_")) {
+      try {
+        const { error } = await supabase
+          .from("integration_files")
+          .delete()
+          .eq("id", file.id);
+        
+        if (error) throw error;
+      } catch (error) {
+        console.error("Faylni o'chirishda xatolik:", error);
+        toast.error("Faylni o'chirishda xatolik yuz berdi!");
+        setDeleteFileConfirmOpen(false);
+        setFileToDelete(null);
+        return;
+      }
+    }
+
     setDynamicTabs((prev) =>
       prev.map((tab) =>
         tab.id === fileToDelete.tabId
@@ -183,6 +273,7 @@ export default function NewIntegrationPage() {
     );
     setDeleteFileConfirmOpen(false);
     setFileToDelete(null);
+    toast.success("Fayl muvaffaqiyatli o'chirildi!");
   };
 
   const handleAddNewTab = () => {
@@ -269,42 +360,6 @@ export default function NewIntegrationPage() {
     setTabToDelete(null);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent, field: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      const file = files[0];
-      // Check file type
-      const allowedTypes = [".pdf", ".doc", ".docx", ".txt"];
-      const fileExtension = "." + file.name.split(".").pop()?.toLowerCase();
-
-      if (allowedTypes.includes(fileExtension)) {
-        handleFileUpload(field, file);
-      } else {
-        toast.error(
-          "Faqat PDF, DOC, DOCX, TXT formatlarida fayl yuklash mumkin"
-        );
-      }
-    }
-  };
-
   const handleSave = async () => {
     // Ma'lumotlarni tekshirish
     if (
@@ -329,6 +384,7 @@ export default function NewIntegrationPage() {
         const processedFiles = [];
         for (const file of files) {
           if (file.file) {
+            // Yangi fayl yuklangan
             const base64 = await new Promise<string>((resolve) => {
               const reader = new FileReader();
               reader.onload = () => resolve(reader.result as string);
@@ -339,6 +395,14 @@ export default function NewIntegrationPage() {
               size: file.file.size,
               type: file.file.type,
               url: base64,
+            });
+          } else if (file.url && !file.file) {
+            // Mavjud fayl saqlanadi
+            processedFiles.push({
+              name: file.name || "",
+              size: file.size || 0,
+              type: file.type || "",
+              url: file.url,
             });
           }
         }
@@ -352,39 +416,44 @@ export default function NewIntegrationPage() {
           title: tab.title,
           description: tab.description,
           files: await processFiles(tab.files),
+          id: tab.id, // Tab id'ni saqlash
         }))
       );
 
-      // Supabase'ga saqlash - yangi struktura
-      const newIntegration = await supabaseUtils.addIntegration({
-        axborotTizimiNomi: formData.axborotTizimiNomi,
-        integratsiyaUsuli: formData.integratsiyaUsuli,
-        malumotNomi: formData.malumotNomi,
-        tashkilotNomiVaShakli: formData.tashkilotNomiVaShakli,
-        asosiyMaqsad: formData.asosiyMaqsad,
-        normativHuquqiyHujjat: formData.normativHuquqiyHujjat,
-        texnologikYoriknomaMavjudligi: formData.texnologikYoriknomaMavjudligi,
-        malumotFormati: formData.malumotFormati,
-        maqlumotAlmashishSharti: formData.maqlumotAlmashishSharti,
-        yangilanishDavriyligi: formData.yangilanishDavriyligi,
-        malumotHajmi: formData.malumotHajmi,
-        aloqaKanali: formData.aloqaKanali,
-        oxirgiUzatishVaqti: formData.oxirgiUzatishVaqti,
-        markaziyBankAloqa: formData.markaziyBankAloqa,
-        hamkorAloqa: formData.hamkorAloqa,
-        status: formData.status,
-        izoh: formData.izoh,
-        // Dynamic tabs
-        dynamicTabs: preparedDynamicTabs,
-      });
+      // Supabase'ga yangilash
+      const updatedIntegration = await supabaseUtils.updateIntegration(
+        params.id as string,
+        {
+          ...formData,
+          dynamicTabs: preparedDynamicTabs.map((tab) => ({
+            name: tab.name,
+            columnKey: tab.columnKey,
+            title: tab.title,
+            description: tab.description,
+            files: tab.files.map((file: any) => ({
+              id: file.id || undefined, // File id'ni saqlash
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              url: file.url,
+            })),
+            id: tab.id,
+          })),
+        }
+      );
 
-      toast.success("Integratsiya muvaffaqiyatli saqlandi!");
+      if (!updatedIntegration) {
+        toast.error("Yangilashda xatolik yuz berdi!");
+        return;
+      }
+
+      toast.success("Integratsiya muvaffaqiyatli yangilandi!");
 
       // Integrations listiga qaytish
       router.push("/integrations");
     } catch (error) {
-      console.error("Saqlashda xatolik:", error);
-      toast.error("Saqlashda xatolik yuz berdi!");
+      console.error("Yangilashda xatolik:", error);
+      toast.error("Yangilashda xatolik yuz berdi!");
     } finally {
       setIsSaving(false);
     }
@@ -393,6 +462,35 @@ export default function NewIntegrationPage() {
   const handleCancel = () => {
     router.push("/integrations");
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!hasPermission(role, "canEditIntegrations")) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-lg font-semibold mb-2">Ruxsat yo'q</p>
+          <p className="text-muted-foreground">
+            Sizda integratsiyalarni tahrirlash ruxsati yo'q
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   const renderPassportContent = () => (
     <div className="space-y-8">
@@ -700,6 +798,10 @@ export default function NewIntegrationPage() {
     files: Array<{
       id: string;
       file: File | null;
+      url?: string;
+      name?: string;
+      size?: number;
+      type?: string;
     }>;
   }) => (
     <div className="space-y-6">
@@ -797,39 +899,45 @@ export default function NewIntegrationPage() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() =>
-                        handleRemoveFileInput(tab.id, fileInput.id)
-                      }
+                      onClick={() => handleRemoveFileInput(tab.id, fileInput.id)}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/50"
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
+                ) : fileInput.url ? (
+                  <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                          <Upload className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {fileInput.name || "Mavjud fayl"}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {fileInput.size
+                            ? `${(fileInput.size / 1024 / 1024).toFixed(2)} MB`
+                            : "Mavjud fayl"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRemoveFileInput(tab.id, fileInput.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/50"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
-                  <div
-                    className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
-                    onDragOver={handleDragOver}
-                    onDragEnter={handleDragEnter}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const files = e.dataTransfer.files;
-                      if (files && files.length > 0) {
-                        const file = files[0];
-                        const allowedTypes = [".pdf", ".doc", ".docx", ".txt"];
-                        const fileExtension =
-                          "." + file.name.split(".").pop()?.toLowerCase();
-                        if (allowedTypes.includes(fileExtension)) {
-                          handleFileChange(tab.id, fileInput.id, file);
-                        } else {
-                          toast.error(
-                            "Faqat PDF, DOC, DOCX, TXT formatlarida fayl yuklash mumkin"
-                          );
-                        }
-                      }
-                    }}
-                  >
+                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
                     <div className="mx-auto w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
                       <Upload className="h-6 w-6 text-gray-400 dark:text-gray-500" />
                     </div>
@@ -871,37 +979,16 @@ export default function NewIntegrationPage() {
     </div>
   );
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!hasPermission(role, "canCreateIntegrations")) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-lg font-semibold mb-2">Ruxsat yo'q</p>
-          <p className="text-muted-foreground">
-            Sizda yangi integratsiya qo'shish ruxsati yo'q
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Yangi integratsiya
+            Integratsiyani tahrirlash
           </h1>
           <p className="text-muted-foreground">
-            Integratsiya ma'lumotlarini to'ldiring
+            Integratsiya ma'lumotlarini yangilang
           </p>
         </div>
         <Button variant="ghost" size="sm" onClick={handleCancel}>
@@ -915,7 +1002,7 @@ export default function NewIntegrationPage() {
         <CardHeader>
           <CardTitle>Integratsiya ma'lumotlari</CardTitle>
           <CardDescription>
-            Barcha kerakli ma'lumotlarni to'ldiring va fayllarni yuklang
+            Barcha kerakli ma'lumotlarni yangilang va fayllarni yuklang
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1025,7 +1112,7 @@ export default function NewIntegrationPage() {
           {isSaving ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saqlanmoqda...
+              Yangilanmoqda...
             </>
           ) : (
             "Saqlash"
@@ -1043,8 +1130,7 @@ export default function NewIntegrationPage() {
             <AlertDialogTitle>Tab'ni o'chirish</AlertDialogTitle>
             <AlertDialogDescription>
               Bu tab'ni o'chirishni tasdiqlaysizmi? Barcha tab ichidagi
-              ma'lumotlar va fayllar o'chiriladi. Bu amalni bekor qilib
-              bo'lmaydi.
+              ma'lumotlar va fayllar o'chiriladi. Bu amalni bekor qilib bo'lmaydi.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1068,8 +1154,7 @@ export default function NewIntegrationPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Faylni o'chirish</AlertDialogTitle>
             <AlertDialogDescription>
-              Bu faylni o'chirishni tasdiqlaysizmi? Bu amalni bekor qilib
-              bo'lmaydi.
+              Bu faylni o'chirishni tasdiqlaysizmi? Bu amalni bekor qilib bo'lmaydi.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1086,3 +1171,4 @@ export default function NewIntegrationPage() {
     </div>
   );
 }
+

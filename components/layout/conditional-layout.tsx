@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 
@@ -8,6 +9,13 @@ interface ConditionalLayoutProps {
 }
 
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
+  const pathname = usePathname();
+  const isLoginPage = pathname === "/login";
+
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />

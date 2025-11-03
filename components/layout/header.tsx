@@ -1,18 +1,24 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Bell, LogOut } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/lib/auth";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { user, logout } = useAuth();
+  const router = useRouter();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsMenuOpen(false);
+    await logout();
+    router.push("/login");
   };
 
   const getUserInitials = (name: string) => {
@@ -75,7 +81,14 @@ export function Header() {
             >
               <Avatar className="h-8 w-8">
                 <AvatarImage src="/avatars/01.png" alt="@username" />
-                <AvatarFallback>U</AvatarFallback>
+                <AvatarFallback>
+                  {user?.email
+                    ? user.email
+                        .split("@")[0]
+                        .substring(0, 2)
+                        .toUpperCase()
+                    : "U"}
+                </AvatarFallback>
               </Avatar>
             </Button>
 
@@ -88,7 +101,7 @@ export function Header() {
                       Foydalanuvchi
                     </p>
                     <p className="text-xs leading-none text-gray-500 dark:text-gray-400">
-                      email@example.com
+                      {user?.email || "email@example.com"}
                     </p>
                     <p className="text-xs leading-none text-gray-500 dark:text-gray-400">
                       Administrator

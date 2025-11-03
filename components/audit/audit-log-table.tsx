@@ -35,7 +35,31 @@ interface AuditLogTableProps {
   onViewDetails?: (log: AuditLog) => void;
 }
 
-const actionColors = {
+// Field nomlarini to'g'ri formatlash
+const fieldLabels: Record<string, string> = {
+  axborotTizimiNomi: "Axborot tizimi yoki resursning to'liq nomi",
+  integratsiyaUsuli: "Integratsiyani amalga oshirish usuli",
+  malumotNomi: "Uzatiladigan/qabul qilinadigan ma'lumot nomi",
+  tashkilotNomiVaShakli: "Integratsiya qilingan tashkilot nomi va shakli",
+  asosiyMaqsad: "Integratsiyadan asosiy maqsad",
+  normativHuquqiyHujjat: "Normativ-huquqiy hujjat",
+  texnologikYoriknomaMavjudligi: "Texnologik yo'riqnoma mavjudligi",
+  malumotFormati: "Ma'lumot formati",
+  maqlumotAlmashishSharti: "Ma'lumot almashish sharti",
+  yangilanishDavriyligi: "Ma'lumot yangilanish davriyligi",
+  malumotHajmi: "Ma'lumot hajmi",
+  aloqaKanali: "Hamkor tashkilot bilan aloqa kanali",
+  oxirgiUzatishVaqti: "So'nggi muvaffaqiyatli uzatish vaqti",
+  markaziyBankAloqa: "Markaziy bank tomonidan texnik aloqa shaxsi",
+  hamkorAloqa: "Hamkor tashkilot tomonidan texnik aloqa shaxsi",
+  status: "Integratsiya holati / statusi",
+  izoh: "Izoh / qo'shimcha ma'lumot",
+};
+
+const actionColors: Record<string, string> = {
+  created: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+  updated: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+  deleted: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
   "Integratsiya yaratildi":
     "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
   "Integratsiya tahrirlandi":
@@ -49,6 +73,12 @@ const actionColors = {
   "Tizim sozlamalari o'zgartirildi":
     "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
   default: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+};
+
+const actionLabels: Record<string, string> = {
+  created: "Integratsiya yaratildi",
+  updated: "Integratsiya tahrirlandi",
+  deleted: "Integratsiya o'chirildi",
 };
 
 export function AuditLogTable({ logs, onViewDetails }: AuditLogTableProps) {
@@ -160,28 +190,32 @@ export function AuditLogTable({ logs, onViewDetails }: AuditLogTableProps) {
                       variant="outline"
                       className={cn(
                         "text-xs",
-                        actionColors[log.action as keyof typeof actionColors] ||
-                          actionColors.default
+                        actionColors[log.action] || actionColors.default
                       )}
                     >
-                      {log.action}
+                      {actionLabels[log.action] || log.action}
                     </Badge>
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate">
                     {log.integrationName || "-"}
                   </TableCell>
-                  <TableCell className="max-w-[200px]">
-                    {log.changes ? (
-                      <div className="text-xs text-muted-foreground">
-                        {Object.entries(log.changes).map(([key, value]) => (
-                          <div key={key} className="truncate">
-                            {key}: {String(value)}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      "-"
-                    )}
+                  <TableCell className="max-w-[300px]">
+                    <div className="text-xs text-muted-foreground">
+                      {log.changes && Object.keys(log.changes).length > 0 ? (
+                        <div className="space-y-1">
+                          {Object.keys(log.changes).map((field) => {
+                            const fieldLabel = fieldLabels[field] || field;
+                            return (
+                              <div key={field} className="truncate">
+                                <span className="font-medium">{fieldLabel}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Button
